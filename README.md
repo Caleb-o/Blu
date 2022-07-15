@@ -1,2 +1,2 @@
 # Blu
-Programming language in Go
+Programming language in Zig

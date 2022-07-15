@@ -1,15 +1,17 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+/*.blu
+temp/
+*.txt
 
-# Test binary, built with `go test -c`
-*.test
+# Created by https://www.toptal.com/developers/gitignore/api/zig
+# Edit at https://www.toptal.com/developers/gitignore?templates=zig
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+### zig ###
+# Zig programming language
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+zig-cache/
+zig-out/
+build/
+build-*/
+docgen_tmp/
+
+# End of https://www.toptal.com/developers/gitignore/api/zig
