@@ -2,13 +2,22 @@ namespace Blu {
     [Serializable]
     class LexerException : Exception
     {
-        int line, column;
-
         // Should not use
         private LexerException() {}
 
         public LexerException(string error, int line, int column)
-            : base($"Lexer error occured: '{error}' at {line}:{column}")
+            : base($"Error occured: {error} at {line}:{column}")
+        {}
+    }
+
+    [Serializable]
+    class ParserException : Exception
+    {
+        // Should not use
+        private ParserException() {}
+
+        public ParserException(string fileName, string error, int line, int column)
+            : base($"Error occured: {error} in '{fileName}' at {line}:{column}")
         {}
     }
 

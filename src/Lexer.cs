@@ -140,6 +140,7 @@ namespace Blu {
         // TODO: Change to ReadOnlySpan<char> when supported with pattern matching
         TokenKind FindKeyword(string lexeme) {
             return lexeme switch {
+                "pub" => TokenKind.Pub,
                 "struct" => TokenKind.Struct,
                 "fn" => TokenKind.Fn,
                 "return" => TokenKind.Return,
@@ -151,6 +152,9 @@ namespace Blu {
                 "ref" => TokenKind.Ref,
                 "var" => TokenKind.Var,
                 "let" => TokenKind.Let,
+
+                "test" => TokenKind.Test,
+                "csharp" => TokenKind.CSharp,
                 
                 _ => TokenKind.Identifier,
             };
