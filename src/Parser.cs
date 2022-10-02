@@ -58,7 +58,19 @@ namespace Blu {
             }
         }
 
+        void Statement(BodyNode? body) {
+            switch (Kind()) {
+                case TokenKind.CSharp:
+                    CSharpBlock(body);
+                    break;
+            }
+
+            Consume(TokenKind.Semicolon, "Expect ';' after statement");
+        }
+
         void PublicStatements() {
+            ConsumeAny();
+
             switch (Kind()) {
                 case TokenKind.Fn:
                     FunctionDefinition(false, GetBody());
@@ -70,11 +82,104 @@ namespace Blu {
             }
         }
 
+        // grammar: csharp string
+        void CSharpBlock(BodyNode? body) {
+            ConsumeAny();
+
+            Token code = this.current;
+            Consume(TokenKind.String, "Expect string after 'csharp' keyword");
+
+            body?.AddNode(new CSharpNode(code));
+        }
+
         void FunctionDefinition(bool isPublic, BodyNode? body) {
             ConsumeAny(); // We know it's 'fn'
 
             Token identifier = this.current;
             Consume(TokenKind.Identifier, "Expected identifier after 'fn'");
+
+            Consume(TokenKind.LParen, "Expected '(' after function name");
+
+            List<ParameterNode> parameterList = new List<ParameterNode>();
+
+            // Parse 'mut x, y, z: int'
+            // Parse 'x, y, z: int'
+            // Parse 'x: ref int'
+            if (Kind() != TokenKind.RParen) {
+                var collectParam = () => {
+                    var (isMutable, identifiers) = GetParameter();
+                    Consume(TokenKind.Colon, "Expect ':' after parameter identifier");
+
+                    TypeNode type = Type("parameter");
+
+                    foreach (var id in identifiers) {
+                        parameterList.Add(new ParameterNode(id, type, isMutable));
+                    }
+                };
+
+                collectParam();
+
+                while (Kind() == TokenKind.Comma) {
+                    ConsumeAny();
+                    collectParam();
+                }
+            }
+
+            Consume(TokenKind.RParen, "Expected ')' after function parameter list");
+
+            // Add function definition to outer body
+            body?.AddNode(new FunctionNode(identifier, isPublic, parameterList, Type("parameter list"), Block()));
+        }
+
+        BodyNode Block() {
+            Consume(TokenKind.LCurly, "Expect '{' to start block");
+
+            BodyNode body = new BodyNode();
+
+            while (Kind() != TokenKind.RCurly) {
+                Statement(body);
+            }
+
+            Consume(TokenKind.RCurly, "Expect '}' to end block");
+
+            return body;
+        }
+
+        TypeNode Type(string where) {
+            bool isReference = false;
+
+            if (Kind() == TokenKind.Ref) {
+                ConsumeAny();
+                isReference = true;
+            }
+
+            Token typeName = this.current;
+            Consume(TokenKind.Identifier, $"Expected type name after {where}");
+
+            return new TypeNode(typeName, isReference);
+        }
+
+        (bool, List<Token>) GetParameter() {
+            bool isMutable = false;
+            
+            if (Kind() == TokenKind.Mutable) {
+                ConsumeAny();
+                isMutable = true;
+            }
+
+            List<Token> parameters = new List<Token>();
+
+            parameters.Add(this.current);
+            Consume(TokenKind.Identifier, "Expected parameter identifier");
+
+            while (Kind() == TokenKind.Comma) {
+                ConsumeAny();
+
+                parameters.Add(this.current);
+                Consume(TokenKind.Identifier, "Expected parameter identifier");
+            }
+
+            return (isMutable, parameters);
         }
     }
 }

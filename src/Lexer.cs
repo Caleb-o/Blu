@@ -150,6 +150,7 @@ namespace Blu {
                 "while" => TokenKind.While,
 
                 "ref" => TokenKind.Ref,
+                "mut" => TokenKind.Mutable,
                 "var" => TokenKind.Var,
                 "let" => TokenKind.Let,
 

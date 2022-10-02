@@ -3,17 +3,14 @@ using System.Text;
 namespace Blu {
     sealed class CSharpNode : AstNode
     {
-        public Token code { get; private set; }
-
-        public CSharpNode(Token token, Token code) : base(token)
+        public CSharpNode(Token token) : base(token)
         {
-            this.code = code;
         }
 
         public override string ToCSharpString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append(code.lexeme);
+            sb.Append(token.lexeme);
             return sb.ToString();
         }
 
@@ -21,7 +18,7 @@ namespace Blu {
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("(CSharp ");
-            sb.Append(code.lexeme);
+            sb.Append(token.lexeme);
             sb.Append(')');
             return sb.ToString();
         }
