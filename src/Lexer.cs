@@ -153,6 +153,7 @@ namespace Blu {
                 "mut" => TokenKind.Mutable,
                 "var" => TokenKind.Var,
                 "let" => TokenKind.Let,
+                "const" => TokenKind.Const,
 
                 "test" => TokenKind.Test,
                 "csharp" => TokenKind.CSharp,

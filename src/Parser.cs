@@ -62,6 +62,55 @@ namespace Blu {
             }
         }
 
+        AstNode Primary() {
+            Token current = this.current;
+
+            var errRet = () => {
+                Error($"Unknown token found in expression {current.lexeme}");
+                return new ErrorNode();
+            };
+
+            return current.kind switch {
+                // Literal values
+                TokenKind.Int or TokenKind.Float or TokenKind.String or
+                TokenKind.True or TokenKind.False => new LiteralNode(current),
+
+                // Identifier
+                TokenKind.Identifier => new IdentifierNode(current),
+
+                // Unknown
+                _ => errRet(),
+            };
+        }
+
+        AstNode Factor() {
+            AstNode node = Primary();
+
+            while (Kind().In(TokenKind.Star, TokenKind.Slash)) {
+                Token op = this.current;
+                ConsumeAny();
+                node = new BinaryOpNode(op, node, Primary());
+            }
+
+            return node;
+        }
+
+        AstNode Term() {
+            AstNode node = Factor();
+
+            while (Kind().In(TokenKind.Plus, TokenKind.Minus)) {
+                Token op = this.current;
+                ConsumeAny();
+                node = new BinaryOpNode(op, node, Factor());
+            }
+
+            return node;
+        }
+
+        AstNode Expression() {
+            return Term();
+        }
+
         void Statement(BodyNode? body) {
             switch (Kind()) {
                 case TokenKind.CSharp:
@@ -72,6 +121,7 @@ namespace Blu {
             Consume(TokenKind.Semicolon, "Expect ';' after statement");
         }
 
+        // grammar: pub (fn|struct|const)
         void PublicStatements() {
             ConsumeAny();
 
@@ -82,6 +132,10 @@ namespace Blu {
 
                 case TokenKind.Struct:
                     StructDefinition(true, GetBody());
+                    break;
+                
+                case TokenKind.Const:
+                    ConstDeclaration(true, GetBody());
                     break;
                 
                 default:
@@ -100,6 +154,30 @@ namespace Blu {
             body?.AddNode(new CSharpNode(code));
         }
 
+        // grammar: const identifier(: type) = expression
+        void ConstDeclaration(bool isPublic, BodyNode? body) {
+            ConsumeAny(); // We know it's 'const'
+
+            Token identifier = this.current;
+            Consume(TokenKind.Identifier, "Expect identifier after 'const'");
+
+            TypeNode? type = null;
+
+            if (Kind() == TokenKind.Colon) {
+                ConsumeAny();
+                type = Type("const identifier");
+            }
+
+            // An expression is required since it is constant
+            Consume(TokenKind.Equal, "Expect '=' after identifier");
+            
+            if (type == null)
+                body?.AddNode(new ConstBindingNode(identifier, isPublic, Expression()));
+            else
+                body?.AddNode(new ConstBindingNode(identifier, isPublic, type, Expression()));
+        }
+
+        // grammar: (pub) struct (ref) identifier { field* }
         void StructDefinition(bool isPublic, BodyNode? body) {
             ConsumeAny(); // We know it's 'struct'
 
@@ -153,6 +231,7 @@ namespace Blu {
             body?.AddNode(new StructNode(identifier, isPublic, isRef, fields.ToArray()));
         }
 
+        // grammar: (pub) fn identifier((param+:type)*) type { statement* }
         void FunctionDefinition(bool isPublic, BodyNode? body) {
             ConsumeAny(); // We know it's 'fn'
 
