@@ -4,11 +4,11 @@ namespace Blu {
     sealed class FunctionNode : AstNode
     {
         public bool isPublic { get; private set; }
-        public List<ParameterNode> parameters { get; private set; }
+        public ParameterNode[] parameters { get; private set; }
         public TypeNode returnType { get; private set; }
         public BodyNode body { get; private set; }
 
-        public FunctionNode(Token token, bool isPublic, List<ParameterNode> parameters, TypeNode returnType, BodyNode body) : base(token)
+        public FunctionNode(Token token, bool isPublic, ParameterNode[] parameters, TypeNode returnType, BodyNode body) : base(token)
         {
             this.isPublic = isPublic;
             this.parameters = parameters;

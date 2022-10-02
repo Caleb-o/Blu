@@ -51,6 +51,10 @@ namespace Blu {
                         FunctionDefinition(false, GetBody());
                         break;
 
+                    case TokenKind.Struct:
+                        StructDefinition(false, GetBody());
+                        break;
+
                     default:
                         Error($"Unknown start of top-level statement '{Kind()}'");
                         break;
@@ -73,7 +77,11 @@ namespace Blu {
 
             switch (Kind()) {
                 case TokenKind.Fn:
-                    FunctionDefinition(false, GetBody());
+                    FunctionDefinition(true, GetBody());
+                    break;
+
+                case TokenKind.Struct:
+                    StructDefinition(true, GetBody());
                     break;
                 
                 default:
@@ -90,6 +98,59 @@ namespace Blu {
             Consume(TokenKind.String, "Expect string after 'csharp' keyword");
 
             body?.AddNode(new CSharpNode(code));
+        }
+
+        void StructDefinition(bool isPublic, BodyNode? body) {
+            ConsumeAny(); // We know it's 'struct'
+
+            bool isRef = false;
+
+            if (Kind() == TokenKind.Ref) {
+                ConsumeAny();
+                isRef = true;
+            }
+
+            Token identifier = this.current;
+            Consume(TokenKind.Identifier, "Expected identifier after 'struct'/'ref'");
+
+            Consume(TokenKind.LCurly, "Expected '{' after struct identifier");
+
+            List<StructField> fields = new List<StructField>();
+
+            if (Kind() != TokenKind.RCurly) {
+                var collectField = () => {
+                    List<Token> identifiers = new List<Token>();
+
+                    identifiers.Add(this.current);
+                    Consume(TokenKind.Identifier, "Expect identifier in field list");
+
+                    while (Kind() == TokenKind.Comma) {
+                        ConsumeAny();
+
+                        identifiers.Add(this.current);
+                        Consume(TokenKind.Identifier, "Expect identifier in field list");
+                    }
+
+                    Consume(TokenKind.Colon, "Expect ':' after field name(s)");
+                    TypeNode type = Type("struct field");
+
+                    Consume(TokenKind.Semicolon, "Expect ';' after field");
+
+                    foreach (var id in identifiers) {
+                        fields.Add(new StructField(id, type));
+                    }
+                };
+
+                collectField();
+
+                while (Kind() != TokenKind.RCurly) {
+                    collectField();
+                }
+            }
+
+            Consume(TokenKind.RCurly, "Expected '}' after struct fields");
+
+            body?.AddNode(new StructNode(identifier, isPublic, isRef, fields.ToArray()));
         }
 
         void FunctionDefinition(bool isPublic, BodyNode? body) {
@@ -128,7 +189,7 @@ namespace Blu {
             Consume(TokenKind.RParen, "Expected ')' after function parameter list");
 
             // Add function definition to outer body
-            body?.AddNode(new FunctionNode(identifier, isPublic, parameterList, Type("parameter list"), Block()));
+            body?.AddNode(new FunctionNode(identifier, isPublic, parameterList.ToArray(), Type("parameter list"), Block()));
         }
 
         BodyNode Block() {

@@ -7,3 +7,6 @@ pub fn foobar(mut x, y: int) int {}
 pub fn foobaz(mut x, y: ref int) int {}
 
 pub fn barbar(mut x, y: ref int, mut z: ref int) int {}
+
+fn barbaz(x: int) void {}
+fn bazfoo(x: ref int) void {}

@@ -1,0 +1,14 @@
+struct Foo {
+    x, y: int;
+}
+
+pub struct Bar {
+    x: int;
+}
+
+struct ref Baz {}
+
+pub struct ref FooBar {
+    x, y, z, a, b, c: int;
+    name: string;
+}
