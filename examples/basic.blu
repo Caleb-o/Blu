@@ -4,7 +4,7 @@ fn foo(x, y: int) int {
 	return x + y * z;
 }
 
-fn take_and_set(x: &int) void {
+fn take_and_set(var x: &int) void {
 	x = 10;
 }
 
@@ -13,10 +13,20 @@ struct Vec2 {
 	y: int,
 }
 
+// struct ref turns into a class
+// it is also heap allocated
+struct ref Person {
+	name: string,
+	age: int,
+}
+
 fn vec2_new(x, y: int) Vec2 {
 	// Maybe allow same name identifiers to be passed in without label?
 	return Vec2 { x: x, y: y };
 }
 
-let fooret = foo(x: 10, y: 20);
-take_and_set(x: &fooret);
+var fooret = foo(x: 10, y: 20);
+take_and_set(var x: &fooret);
+
+// Struct ref types will automatically be generated with 'new' in C#
+let person = Person(name: "Caleb", age: 23);
