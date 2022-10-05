@@ -40,10 +40,10 @@ namespace Blu {
         TokenKind? Kind() => this.current?.kind;
         BodyNode? GetBody() => this.unit?.ast?.body;
 
-        void TopLevelStatements() {
+        void TopLevelStatements(bool isPublic) {
             switch (Kind()) {
                 case TokenKind.Const:
-                    ConstDeclaration(false, GetBody());
+                    ConstDeclaration(isPublic, GetBody());
                     break;
 
                 default:
@@ -68,7 +68,7 @@ namespace Blu {
                     break;
                 
                 default:
-                    TopLevelStatements();
+                    TopLevelStatements(true);
                     break;
             }
         }
@@ -89,7 +89,7 @@ namespace Blu {
                         break;
 
                     default:
-                        TopLevelStatements();
+                        TopLevelStatements(false);
                         break;
                 }
             }
