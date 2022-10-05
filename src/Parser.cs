@@ -54,11 +54,45 @@ namespace Blu {
             Consume(TokenKind.Semicolon, "Expect ';' after top-level statement");
         }
 
+        void PublicTopLevelStatements() {
+            // Note: pub keyword will be consumed prior
+            switch (Kind()) {
+                case TokenKind.Const:
+                    ConstDeclaration(true, GetBody());
+                    break;
+
+                default:
+                    Error($"Unknown start of top-level statement '{Kind()}'");
+                    break;
+            }
+
+            Consume(TokenKind.Semicolon, "Expect ';' after top-level statement");
+        }
+
+        // grammar: pub (fn|struct|const)
+        void PublicTopLevel() {
+            ConsumeAny();
+
+            switch (Kind()) {
+                case TokenKind.Fn:
+                    FunctionDefinition(true, GetBody());
+                    break;
+
+                case TokenKind.Struct:
+                    StructDefinition(true, GetBody());
+                    break;
+                
+                default:
+                    PublicTopLevelStatements();
+                    break;
+            }
+        }
+
         void TopLevel() {
             while (Kind() != TokenKind.EndOfFile) {
                 switch (Kind()) {
                     case TokenKind.Pub:
-                        PublicTopLevelStatements();
+                        PublicTopLevel();
                         break;
 
                     case TokenKind.Fn:
@@ -152,29 +186,6 @@ namespace Blu {
             }
 
             Consume(TokenKind.Semicolon, "Expect ';' after statement");
-        }
-
-        // grammar: pub (fn|struct|const)
-        void PublicTopLevelStatements() {
-            ConsumeAny();
-
-            switch (Kind()) {
-                case TokenKind.Fn:
-                    FunctionDefinition(true, GetBody());
-                    break;
-
-                case TokenKind.Struct:
-                    StructDefinition(true, GetBody());
-                    break;
-                
-                case TokenKind.Const:
-                    ConstDeclaration(true, GetBody());
-                    break;
-                
-                default:
-                    Error($"Unknown start of public statement '{Kind()}'");
-                    break;
-            }
         }
 
         // grammar: csharp string

@@ -1,4 +1,5 @@
 const global = 2;
+pub const global2: int = 30;
 
 fn main() void {
     const foo = 10;
