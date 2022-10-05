@@ -3,6 +3,7 @@ namespace Blu {
     {
         public IdentifierNode(Token? token) : base(token)
         {
+            this.isExpression = true;
         }
 
         public override string ToCSharpString()

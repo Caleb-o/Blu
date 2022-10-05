@@ -113,6 +113,10 @@ namespace Blu {
 
         void Statement(BodyNode? body) {
             switch (Kind()) {
+                case TokenKind.Const:
+                    ConstDeclaration(false, GetBody());
+                    break;
+                
                 case TokenKind.CSharp:
                     CSharpBlock(body);
                     break;
@@ -302,7 +306,7 @@ namespace Blu {
         (bool, List<Token>) GetParameter() {
             bool isMutable = false;
             
-            if (Kind() == TokenKind.Mutable) {
+            if (Kind() == TokenKind.Var) {
                 ConsumeAny();
                 isMutable = true;
             }
