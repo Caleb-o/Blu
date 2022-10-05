@@ -65,22 +65,25 @@ namespace Blu {
         AstNode Primary() {
             Token current = this.current;
 
-            var errRet = () => {
-                Error($"Unknown token found in expression {current.lexeme}");
-                return new ErrorNode();
-            };
-
-            return current.kind switch {
-                // Literal values
-                TokenKind.Int or TokenKind.Float or TokenKind.String or
-                TokenKind.True or TokenKind.False => new LiteralNode(current),
+            switch (current.kind) {
+                case TokenKind.Int: case TokenKind.Float: case TokenKind.String:
+                case TokenKind.True: case TokenKind.False: {
+                    ConsumeAny();
+                    return new LiteralNode(current);
+                }
 
                 // Identifier
-                TokenKind.Identifier => new IdentifierNode(current),
+                case TokenKind.Identifier: {
+                    ConsumeAny();
+                    return new IdentifierNode(current);
+                }
 
-                // Unknown
-                _ => errRet(),
-            };
+                default:
+                    Error($"Unknown token found in expression {current.lexeme}");
+                    break;
+            }
+
+            throw new UnreachableException("Parser - Primary");
         }
 
         AstNode Factor() {
@@ -116,9 +119,21 @@ namespace Blu {
                 case TokenKind.Const:
                     ConstDeclaration(false, GetBody());
                     break;
+
+                case TokenKind.Var:
+                    BindingDeclaration(true, GetBody());
+                    break;
+
+                case TokenKind.Let:
+                    BindingDeclaration(false, GetBody());
+                    break;
                 
                 case TokenKind.CSharp:
                     CSharpBlock(body);
+                    break;
+                
+                default:
+                    Error("Unknown statement found");
                     break;
             }
 
@@ -165,12 +180,7 @@ namespace Blu {
             Token identifier = this.current;
             Consume(TokenKind.Identifier, "Expect identifier after 'const'");
 
-            TypeNode? type = null;
-
-            if (Kind() == TokenKind.Colon) {
-                ConsumeAny();
-                type = Type("const identifier");
-            }
+            TypeNode? type = TryGetTypeIdentifier("const identifier");
 
             // An expression is required since it is constant
             Consume(TokenKind.Equal, "Expect '=' after identifier");
@@ -179,6 +189,24 @@ namespace Blu {
                 body?.AddNode(new ConstBindingNode(identifier, isPublic, Expression()));
             else
                 body?.AddNode(new ConstBindingNode(identifier, isPublic, type, Expression()));
+        }
+
+        // grammar: (let|var) id = expression
+        void BindingDeclaration(bool isVar, BodyNode? body) {
+            ConsumeAny();
+
+            Token identifier = this.current;
+            Consume(TokenKind.Identifier, "Expect identifier after 'var'/'let'");
+
+            TypeNode? type = TryGetTypeIdentifier("'var'/'let'");
+
+            // An expression is required since it is constant
+            Consume(TokenKind.Equal, "Expect '=' after identifier");
+            
+            if (type == null)
+                body?.AddNode(new BindingNode(identifier, Expression()));
+            else
+                body?.AddNode(new BindingNode(identifier, type, Expression()));
         }
 
         // grammar: (pub) struct (ref) identifier { field* }
@@ -287,6 +315,20 @@ namespace Blu {
             Consume(TokenKind.RCurly, "Expect '}' to end block");
 
             return body;
+        }
+
+        TypeNode? TryGetTypeIdentifier(string where) {
+            if (Kind() != TokenKind.Colon) {
+                return null;
+            }
+            
+            ConsumeAny();
+                
+            Token typeName = this.current;
+            Consume(TokenKind.Identifier, $"Expected type name after {where}");
+
+            // TODO: Check if this would be useful to have refs
+            return new TypeNode(typeName, false);
         }
 
         TypeNode Type(string where) {

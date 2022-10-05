@@ -1,0 +1,7 @@
+fn main() void {
+    const foo = 10;
+    const bar: float = 3.14;
+    let a: int = 10 + 2;
+    var b: int = 2 * 3 + 4;
+    var c = 7 * 7 / 2;
+}

@@ -21,6 +21,17 @@ namespace Blu {
         {}
     }
 
+    [Serializable]
+    class UnreachableException : Exception
+    {
+        // Should not use
+        private UnreachableException() {}
+
+        public UnreachableException(string where)
+            : base($"Unreachable case at '{where}'")
+        {}
+    }
+
     static class Utils {
         public static bool In<T>(this T obj, params T[] args)
         {
