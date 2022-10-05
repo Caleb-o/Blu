@@ -15,7 +15,7 @@ namespace Blu {
         }
 
         public CompilationUnit? Parse() {
-            TopLevelStatements();
+            TopLevel();
             return this.unit;
         }
 
@@ -41,10 +41,24 @@ namespace Blu {
         BodyNode? GetBody() => this.unit?.ast?.body;
 
         void TopLevelStatements() {
+            switch (Kind()) {
+                case TokenKind.Const:
+                    ConstDeclaration(false, GetBody());
+                    break;
+
+                default:
+                    Error($"Unknown start of top-level statement '{Kind()}'");
+                    break;
+            }
+
+            Consume(TokenKind.Semicolon, "Expect ';' after top-level statement");
+        }
+
+        void TopLevel() {
             while (Kind() != TokenKind.EndOfFile) {
                 switch (Kind()) {
                     case TokenKind.Pub:
-                        PublicStatements();
+                        PublicTopLevelStatements();
                         break;
 
                     case TokenKind.Fn:
@@ -56,7 +70,7 @@ namespace Blu {
                         break;
 
                     default:
-                        Error($"Unknown start of top-level statement '{Kind()}'");
+                        TopLevelStatements();
                         break;
                 }
             }
@@ -141,7 +155,7 @@ namespace Blu {
         }
 
         // grammar: pub (fn|struct|const)
-        void PublicStatements() {
+        void PublicTopLevelStatements() {
             ConsumeAny();
 
             switch (Kind()) {

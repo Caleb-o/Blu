@@ -1,3 +1,5 @@
+const global = 2;
+
 fn main() void {
     const foo = 10;
     const bar: float = 3.14;
