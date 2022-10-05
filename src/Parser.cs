@@ -54,21 +54,6 @@ namespace Blu {
             Consume(TokenKind.Semicolon, "Expect ';' after top-level statement");
         }
 
-        void PublicTopLevelStatements() {
-            // Note: pub keyword will be consumed prior
-            switch (Kind()) {
-                case TokenKind.Const:
-                    ConstDeclaration(true, GetBody());
-                    break;
-
-                default:
-                    Error($"Unknown start of top-level statement '{Kind()}'");
-                    break;
-            }
-
-            Consume(TokenKind.Semicolon, "Expect ';' after top-level statement");
-        }
-
         // grammar: pub (fn|struct|const)
         void PublicTopLevel() {
             ConsumeAny();
@@ -83,7 +68,7 @@ namespace Blu {
                     break;
                 
                 default:
-                    PublicTopLevelStatements();
+                    TopLevelStatements();
                     break;
             }
         }
