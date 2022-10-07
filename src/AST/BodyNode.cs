@@ -14,7 +14,17 @@ namespace Blu {
         }
 
         public override string ToCSharpString() {
-            throw new NotImplementedException();
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine("{");
+
+            foreach (AstNode node in statements) {
+                sb.AppendLine(node.ToLispyString());
+            }
+
+            sb.AppendLine("}");
+
+            return sb.ToString();
         }
 
         public override string ToLispyString() {

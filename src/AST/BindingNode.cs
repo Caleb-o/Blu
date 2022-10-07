@@ -6,6 +6,8 @@ namespace Blu {
         public bool isMutable { get; private set; }
         public bool useInference { get; private set; }
 
+        string typeName = string.Empty;
+
         // Binding was provided with a type
         public BindingNode(Token token, bool isMutable, TypeNode type, AstNode? expression) : base(token)
         {
@@ -16,8 +18,8 @@ namespace Blu {
         }
 
         // Binding will use inference
-        // We can use the 'var' keyword in C# to infer the type for us
-        // Note: We guarantee that the expression is of a single type, an expression is required
+        // Since we evaluate a type, either by specifying the type or inferring it, we
+        // will always generate the variable with a type, instead of using var.
         public BindingNode(Token token, bool isMutable, AstNode expression) : base(token)
         {
             this.expression = expression;
@@ -25,9 +27,13 @@ namespace Blu {
             this.useInference = true;
         }
 
+        public void SetTypeName(string typeName) {
+            this.typeName = typeName;
+        }
+
         public override string ToCSharpString()
         {
-            throw new NotImplementedException();
+            return $"{typeName} {token?.lexeme} = {expression?.ToCSharpString()};";
         }
 
         public override string ToLispyString()

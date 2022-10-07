@@ -9,6 +9,8 @@ namespace Blu {
         public AstNode? expression { get; private set; }
         public bool useInference { get; private set; }
 
+        string typeName = string.Empty;
+
         // Binding was provided with a type
         public ConstBindingNode(Token token, bool isPublic, TypeNode type, AstNode? expression) : base(token)
         {
@@ -29,6 +31,10 @@ namespace Blu {
             this.useInference = true;
         }
 
+        public void SetTypeName(string typeName) {
+            this.typeName = typeName;
+        }
+
         // Set the type of the constant binding
         // This should ONLY be used when inferring the type, as inferring the type again may cause issues
         public void SetType(TypeNode type) {
@@ -38,7 +44,7 @@ namespace Blu {
 
         public override string ToCSharpString()
         {
-            throw new NotImplementedException();
+            return $"const {typeName} {token?.lexeme} = {expression?.ToCSharpString()};";
         }
 
         public override string ToLispyString()
