@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Blu {
     sealed class Lexer {
         string source;
@@ -107,12 +109,21 @@ namespace Blu {
             int ip = this.ip;
             int column = this.column;
 
+            StringBuilder sb = new StringBuilder();
+
             while (!IsAtEnd() && Peek() != '"') {
-                Advance();
+                if (Peek() == '\\') {
+                    Advance();
+                    sb.Append(Peek());
+                    Advance();
+                } else {
+                    sb.Append(Peek());
+                    Advance();
+                }
             }
             Advance();
 
-            return MakeToken(TokenKind.String, column, this.source[ip..(this.ip - 1)]);
+            return MakeToken(TokenKind.String, column, sb.ToString());
         }
 
         Token Digit() {
