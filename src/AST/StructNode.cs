@@ -13,15 +13,5 @@ namespace Blu {
             this.implements = implements;
             this.fields = fields;
         }
-
-        public override string ToCSharpString()
-        {
-            throw new NotImplementedException();
-        }
-
-        public override string ToLispyString()
-        {
-            throw new NotImplementedException();
-        }
     }
 }

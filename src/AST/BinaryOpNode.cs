@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Blu {
     sealed class BinaryOpNode : AstNode
     {
@@ -8,16 +10,6 @@ namespace Blu {
         {
             this.lhs = lhs;
             this.rhs = rhs;
-        }
-
-        public override string ToCSharpString()
-        {
-            throw new NotImplementedException();
-        }
-
-        public override string ToLispyString()
-        {
-            throw new NotImplementedException();
         }
     }
 }

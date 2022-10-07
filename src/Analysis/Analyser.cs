@@ -179,6 +179,8 @@ namespace Blu {
                 } else {
                     TypeSymbol type = (TypeSymbol)FindSymbol(param.type.typeName);
                     DeclareSymbol(new BindingSymbol(param.token.lexeme, param.token, false, (param.isMutable) ? BindingType.Var : BindingType.Let, type));
+
+                    param.SetTypeName(type.identifier);
                 }
 
                 ErrorNoType(param.type.typeName, param.type.token);
@@ -186,6 +188,7 @@ namespace Blu {
             }
 
             ErrorNoType(node.returnType.typeName, node.returnType.token);
+            node.returnType.SetTypeName(((TypeSymbol?)FindSymbol(node.returnType.token.lexeme)).identifier);
 
             VisitBody(node.body, false);
 
@@ -196,9 +199,9 @@ namespace Blu {
             TypeSymbol? type = null;
 
             if (node.type == null) {
-                type = InferTypeOfNode(node);
+                type = InferTypeOfNode(node.expression);
             } else {
-                type = (TypeSymbol?)FindSymbol(node.type?.token.lexeme);
+                type = (TypeSymbol?)FindSymbol(node.type?.token?.lexeme);
                 TypeSymbol? errorType = ExpectTypeOfNode(node.expression, type);
 
                 if (errorType != null) {
@@ -215,9 +218,9 @@ namespace Blu {
             TypeSymbol? type = null;
 
             if (node.type == null) {
-                type = InferTypeOfNode(node);
+                type = InferTypeOfNode(node.expression);
             } else {
-                type = (TypeSymbol?)FindSymbol(node.type?.token.lexeme);
+                type = (TypeSymbol?)FindSymbol(node.type?.token?.lexeme);
                 TypeSymbol? errorType = ExpectTypeOfNode(node.expression, type);
 
                 if (errorType != null) {
@@ -283,7 +286,7 @@ namespace Blu {
         }
 
         // Returns the type of the inferred node
-        TypeSymbol? InferTypeOfNode(AstNode node) {
+        TypeSymbol InferTypeOfNode(AstNode node) {
             TypeSymbol? type = GetTypeOfNode(node);
 
             var errorType = ExpectTypeOfNode(node, type);

@@ -11,7 +11,10 @@
                 var unit = parser.Parse();
 
                 Analyser analyser = new Analyser(unit);
-                _ = analyser.Analyse();
+                if (!analyser.Analyse()) {
+                    Generator gen = new Generator();
+                    gen.Generate(unit);
+                }
             } catch (Exception e) when (e is LexerException ||
                                         e is ParserException ||
                                         e is AnalyserException) {

@@ -37,8 +37,8 @@ namespace Blu {
         public override string ToString()
         {
             return (lexeme == null)
-                ? $"Token {{ {kind}, {line}:{column} }}"
-                : $"Token {{ {kind}, {line}:{column}, '{lexeme}' }}";
+                ? string.Empty
+                : lexeme;
         }
     }
 
@@ -46,5 +46,30 @@ namespace Blu {
         public CharToken(TokenKind kind, int line, int column)
             : base(kind, line, column, null)
         {}
+
+        public override string ToString()
+        {
+            return kind switch {
+                TokenKind.Plus => "+",
+                TokenKind.Minus => "-",
+                TokenKind.Star => "*",
+                TokenKind.Slash => "/",
+                TokenKind.Equal => "=",
+                
+                TokenKind.Dot => ".",
+                TokenKind.Comma => ",",
+                TokenKind.Colon => ":",
+                TokenKind.Semicolon => ";",
+
+                TokenKind.LParen => "(",
+                TokenKind.RParen => ")",
+                TokenKind.LCurly => "{",
+                TokenKind.RCurly => "}",
+                TokenKind.LSquare => "[",
+                TokenKind.RSquare => "]",
+                
+                _ => throw new UnreachableException($"CharToken - {kind}"),
+            };
+        }
     }
 }

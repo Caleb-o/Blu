@@ -159,15 +159,15 @@ namespace Blu {
         void Statement(BodyNode? body) {
             switch (Kind()) {
                 case TokenKind.Const:
-                    ConstDeclaration(false, GetBody());
+                    ConstDeclaration(false, body);
                     break;
 
                 case TokenKind.Var:
-                    BindingDeclaration(true, GetBody());
+                    BindingDeclaration(true, body);
                     break;
 
                 case TokenKind.Let:
-                    BindingDeclaration(false, GetBody());
+                    BindingDeclaration(false, body);
                     break;
                 
                 case TokenKind.CSharp:
@@ -329,6 +329,7 @@ namespace Blu {
 
             Consume(TokenKind.RParen, "Expected ')' after function parameter list");
 
+
             // Add function definition to outer body
             body?.AddNode(new FunctionNode(identifier, isPublic, parameterList.ToArray(), Type("parameter list"), Block()));
         }
@@ -336,15 +337,15 @@ namespace Blu {
         BodyNode Block() {
             Consume(TokenKind.LCurly, "Expect '{' to start block");
 
-            BodyNode body = new BodyNode();
+            BodyNode newBlock = new BodyNode();
 
             while (Kind() != TokenKind.RCurly) {
-                Statement(body);
+                Statement(newBlock);
             }
 
             Consume(TokenKind.RCurly, "Expect '}' to end block");
 
-            return body;
+            return newBlock;
         }
 
         TypeNode? TryGetTypeIdentifier(string where) {

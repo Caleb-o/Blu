@@ -2,14 +2,19 @@ namespace Blu {
     abstract class AstNode {
         public Token? token { get; protected set; }
         public bool isExpression { get; protected set; }
+        
+        protected string typeName = string.Empty;
 
         public AstNode(Token? token) {
             this.token = token;
         }
 
-        // Used for testing and simple visualisation
-        public abstract string ToLispyString();
-        // Used for generating the final C# code
-        public abstract string ToCSharpString();
+        public void SetTypeName(string typeName) {
+            this.typeName = typeName;
+        }
+
+        public string GetTypeName() {
+            return typeName;
+        }
     }
 }

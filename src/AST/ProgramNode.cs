@@ -9,13 +9,5 @@ namespace Blu {
         {
             this.body = new BodyNode();
         }
-
-        public override string ToCSharpString() {
-            StringBuilder sb = new StringBuilder();
-
-            return sb.ToString();
-        }
-
-        public override string ToLispyString() => $"(Program {body?.ToLispyString()})";
     }
 }

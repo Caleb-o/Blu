@@ -6,8 +6,6 @@ namespace Blu {
         public bool isMutable { get; private set; }
         public bool useInference { get; private set; }
 
-        string typeName = string.Empty;
-
         // Binding was provided with a type
         public BindingNode(Token token, bool isMutable, TypeNode type, AstNode? expression) : base(token)
         {
@@ -25,20 +23,6 @@ namespace Blu {
             this.expression = expression;
             this.isMutable = isMutable;
             this.useInference = true;
-        }
-
-        public void SetTypeName(string typeName) {
-            this.typeName = typeName;
-        }
-
-        public override string ToCSharpString()
-        {
-            return $"{typeName} {token?.lexeme} = {expression?.ToCSharpString()};";
-        }
-
-        public override string ToLispyString()
-        {
-            throw new NotImplementedException();
         }
     }
 }
