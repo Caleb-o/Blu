@@ -173,6 +173,10 @@ namespace Blu {
             List<TypeSymbol> parameterTypes = new List<TypeSymbol>();
             TypeSymbol? ret = null;
 
+            if (unit.isMainUnit && node.token.lexeme == "main") {
+                node.SetEntry();
+            }
+
             DeclareSymbol(new FunctionSymbol(node.token.lexeme, node.token, node.isPublic, parameterTypes, ret));
             PushScope();
 

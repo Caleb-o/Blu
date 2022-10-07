@@ -8,12 +8,18 @@ namespace Blu {
         public TypeNode returnType { get; private set; }
         public BodyNode body { get; private set; }
 
+        public bool isEntry { get; private set; } = false;
+
         public FunctionNode(Token token, bool isPublic, ParameterNode[] parameters, TypeNode returnType, BodyNode body) : base(token)
         {
             this.isPublic = isPublic;
             this.parameters = parameters;
             this.returnType = returnType;
             this.body = body;
+        }
+
+        public void SetEntry() {
+            this.isEntry = true;
         }
     }
 }
