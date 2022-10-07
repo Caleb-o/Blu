@@ -3,12 +3,14 @@ namespace Blu {
     {
         public bool isPublic { get; private set; }
         public bool isRef { get; private set; }
+        public Token[] implements { get; private set; }
         public StructField[] fields { get; private set; }
 
-        public StructNode(Token? token, bool isPublic, bool isRef, StructField[] fields) : base(token)
+        public StructNode(Token? token, bool isPublic, bool isRef, Token[] implements, StructField[] fields) : base(token)
         {
             this.isPublic = isPublic;
             this.isRef = isRef;
+            this.implements = implements;
             this.fields = fields;
         }
 

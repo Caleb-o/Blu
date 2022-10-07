@@ -8,8 +8,13 @@
 
             try {
                 Parser parser = new Parser(args[0], true);
-                _ = parser.Parse();
-            } catch (Exception e) {
+                var unit = parser.Parse();
+
+                Analyser analyser = new Analyser(unit);
+                _ = analyser.Analyse();
+            } catch (Exception e) when (e is LexerException ||
+                                        e is ParserException ||
+                                        e is AnalyserException) {
                 Console.WriteLine(e.Message);
             }
         }

@@ -1,5 +1,5 @@
 namespace Blu {
-    class Lexer {
+    sealed class Lexer {
         string source;
         int line, column, ip;
 

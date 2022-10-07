@@ -12,3 +12,10 @@ pub struct ref FooBar {
     x, y, z, a, b, c: int;
     name: string;
 }
+
+pub struct FooBaz(Foo, Bar) {}
+pub struct ref BarFoo(FooBaz) {
+    x, y, z: int;
+}
+
+struct FooBaz {}

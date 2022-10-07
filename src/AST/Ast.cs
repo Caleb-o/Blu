@@ -1,7 +1,7 @@
 namespace Blu {
     abstract class AstNode {
         public Token? token { get; protected set; }
-        public bool isExpression = false;
+        public bool isExpression { get; protected set; }
 
         public AstNode(Token? token) {
             this.token = token;

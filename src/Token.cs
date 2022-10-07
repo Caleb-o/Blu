@@ -42,7 +42,7 @@ namespace Blu {
         }
     }
 
-    class CharToken : Token {
+    sealed class CharToken : Token {
         public CharToken(TokenKind kind, int line, int column)
             : base(kind, line, column, null)
         {}

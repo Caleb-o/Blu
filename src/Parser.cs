@@ -1,5 +1,5 @@
 namespace Blu {
-    class Parser {
+    sealed class Parser {
         Lexer? lexer;
         Token? current;
         CompilationUnit? unit;
@@ -30,6 +30,15 @@ namespace Blu {
             }
 
             Error(message);
+        }
+
+        bool ConsumeIf(TokenKind kind) {
+            if (Kind() == kind) {
+                this.current = this.lexer?.Next();
+                return true;
+            }
+
+            return false;
         }
 
         void ConsumeAny() {
@@ -211,6 +220,7 @@ namespace Blu {
             TypeNode? type = TryGetTypeIdentifier("'var'/'let'");
 
             // An expression is required since it is constant
+            // FIXME: Allow for bindings without assigned value
             Consume(TokenKind.Equal, "Expect '=' after identifier");
             
             if (type == null)
@@ -223,15 +233,25 @@ namespace Blu {
         void StructDefinition(bool isPublic, BodyNode? body) {
             ConsumeAny(); // We know it's 'struct'
 
-            bool isRef = false;
-
-            if (Kind() == TokenKind.Ref) {
-                ConsumeAny();
-                isRef = true;
-            }
+            bool isRef = ConsumeIf(TokenKind.Ref);
 
             Token identifier = this.current;
             Consume(TokenKind.Identifier, "Expected identifier after 'struct'/'ref'");
+
+            List<Token> implements = new List<Token>();
+            if (ConsumeIf(TokenKind.LParen)) {
+                implements.Add(this.current);
+                Consume(TokenKind.Identifier, "Expect identifier in inheritance list");
+
+                while (Kind() == TokenKind.Comma) {
+                    ConsumeAny();
+
+                    implements.Add(this.current);
+                    Consume(TokenKind.Identifier, "Expect identifier in inheritance list");
+                }
+
+                Consume(TokenKind.RParen, "Expect ')' after struct inheritance list");
+            }
 
             Consume(TokenKind.LCurly, "Expected '{' after struct identifier");
 
@@ -270,7 +290,7 @@ namespace Blu {
 
             Consume(TokenKind.RCurly, "Expected '}' after struct fields");
 
-            body?.AddNode(new StructNode(identifier, isPublic, isRef, fields.ToArray()));
+            body?.AddNode(new StructNode(identifier, isPublic, isRef, implements.ToArray(), fields.ToArray()));
         }
 
         // grammar: (pub) fn identifier((param+:type)*) type { statement* }
@@ -342,12 +362,7 @@ namespace Blu {
         }
 
         TypeNode Type(string where) {
-            bool isReference = false;
-
-            if (Kind() == TokenKind.Ref) {
-                ConsumeAny();
-                isReference = true;
-            }
+            bool isReference = ConsumeIf(TokenKind.Ref);
 
             Token typeName = this.current;
             Consume(TokenKind.Identifier, $"Expected type name after {where}");
@@ -356,12 +371,7 @@ namespace Blu {
         }
 
         (bool, List<Token>) GetParameter() {
-            bool isMutable = false;
-            
-            if (Kind() == TokenKind.Var) {
-                ConsumeAny();
-                isMutable = true;
-            }
+            bool isMutable = ConsumeIf(TokenKind.Var);
 
             List<Token> parameters = new List<Token>();
 
