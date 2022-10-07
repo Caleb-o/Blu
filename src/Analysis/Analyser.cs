@@ -115,6 +115,10 @@ namespace Blu {
                     VisitIdentifier(n);
                     break;
                 
+                // Ignore
+                case CSharpNode:
+                    break;
+                
                 default:
                     throw new UnreachableException($"Analyser - Visit ({node})");
             }
@@ -291,7 +295,7 @@ namespace Blu {
 
             var errorType = ExpectTypeOfNode(node, type);
             if (errorType != null) {
-                SoftError($"Expression expect type '{type}' but received '{errorType}'", node.token);
+                SoftError($"Expression expected type '{type}' but received '{errorType}'", node.token);
             }
 
             return type;
@@ -307,12 +311,19 @@ namespace Blu {
             };
         }
 
+        TypeSymbol? GetTypeFromIdentifier(IdentifierNode node) {
+            return FindSymbol(node.token?.lexeme) switch {
+                BindingSymbol c => c.type,
+                _ => throw new UnreachableException("TypeFromIdentifier"),
+            };
+        }
+
         TypeSymbol? GetTypeOfNode(AstNode node) {
             return node switch {
                 LiteralNode literal => GetTypeFromLiteral(literal),
                 BinaryOpNode binop => GetTypeOfNode(binop.lhs),
                 UnaryOpNode unary => GetTypeOfNode(unary.rhs),
-                IdentifierNode id => (TypeSymbol?)FindSymbol(id.token?.lexeme),
+                IdentifierNode id => GetTypeFromIdentifier(id),
                 BindingNode b => new TypeSymbol(b.type?.typeName, b.type?.token),
                 ConstBindingNode b => new TypeSymbol(b.type?.typeName, b.type?.token),
                 _ => throw new UnreachableException($"Analyser - {node}"),

@@ -11,7 +11,7 @@ namespace Blu {
         
         public void Generate(CompilationUnit unit) {
             VisitProgramNode(unit.ast);
-            File.WriteAllText("experimenting.cs", sb.ToString());
+            File.WriteAllText("experimenting.txt", sb.ToString());
         }
 
         string GetPadding() {
@@ -55,7 +55,19 @@ namespace Blu {
                 case LiteralNode l:
                     VisitLiteral(l);
                     break;
-
+                
+                case CSharpNode c:
+                    VisitCSharp(c);
+                    break;
+                
+                case IdentifierNode i:
+                    sb.Append(i.token.lexeme);
+                    break;
+                
+                case StructNode s:
+                    VisitStruct(s);
+                    break;
+                
                 default:
                     throw new UnreachableException($"Generator - {node}");
             }
@@ -99,6 +111,7 @@ namespace Blu {
             sb.Append(") ");
 
             VisitBodyNode(node.body);
+            sb.AppendLine();
         }
 
         void VisitBinaryOp(BinaryOpNode node) {
@@ -113,7 +126,7 @@ namespace Blu {
         }
 
         void VisitCSharp(CSharpNode node) {
-            sb.Append(node.token);
+            AppendLine(node.token.ToString());
         }
 
         void VisitConstBinding(ConstBindingNode node) {
@@ -138,6 +151,51 @@ namespace Blu {
 
         void VisitIdentifier(IdentifierNode node) {
             sb.Append(node.token);
+        }
+
+        void VisitStruct(StructNode node) {
+            string vis = (node.isPublic) ? "public" : "private";
+            if (node.isRef) {
+                AppendLine($"{vis} class {node.token?.lexeme} {{");
+            } else {
+                AppendLine($"{vis} struct {node.token?.lexeme} {{");
+            }
+
+            depth++;
+
+            string fields = "";
+            int i = 0;
+            foreach (var field in node.fields) {
+                VisitStructField(field);
+
+                fields += $"{field.type?.typeName} {field.token?.lexeme}";
+
+                if (i++ < node.fields.Length - 1) {
+                    fields += ", ";
+                }
+            }
+
+            sb.AppendLine();
+
+            // Generate default constructor
+            AppendLine($"public {node.token?.lexeme}({fields}) {{");
+
+            depth++;
+
+            foreach (var field in node.fields) {
+                AppendLine($"this.{field.token?.lexeme} = {field.token?.lexeme};");
+            }
+
+            depth--;
+
+            AppendLine("}");
+
+            depth--;
+            AppendLine("}\n");
+        }
+
+        void VisitStructField(StructField node) {
+            AppendLine($"public {node.type.typeName} {node.token.lexeme};");
         }
     }
 }
