@@ -224,9 +224,9 @@ namespace Blu {
             Consume(TokenKind.Equal, "Expect '=' after identifier");
             
             if (type == null)
-                body?.AddNode(new BindingNode(identifier, Expression()));
+                body?.AddNode(new BindingNode(identifier, isVar, Expression()));
             else
-                body?.AddNode(new BindingNode(identifier, type, Expression()));
+                body?.AddNode(new BindingNode(identifier, isVar, type, Expression()));
         }
 
         // grammar: (pub) struct (ref) identifier { field* }

@@ -7,13 +7,21 @@ namespace Blu {
         public Analyser(CompilationUnit unit) {
             this.unit = unit;
 
-            symbolTable.Add(new List<Symbol>());
+            PushScope();
             DefineBuiltinTypes();
         }
 
         public bool Analyse() {
             Visit(this.unit.ast);
             return this.hadError;
+        }
+
+        void PushScope() {
+            symbolTable.Add(new List<Symbol>());
+        }
+
+        void PopScope() {
+            symbolTable.Remove(symbolTable.Last());
         }
 
         void SoftError(string message, Token token) {
@@ -32,6 +40,7 @@ namespace Blu {
         }
 
         void DefineBuiltinTypes() {
+            DeclareSymbol(new TypeSymbol("void"));
             DeclareSymbol(new TypeSymbol("int"));
             DeclareSymbol(new TypeSymbol("float"));
             DeclareSymbol(new TypeSymbol("bool"));
@@ -72,6 +81,10 @@ namespace Blu {
             symbolTable[symbolTable.Count - 1].Add(sym);
         }
 
+        BindingType GetBindingType(BindingNode node) {
+            return (node.isMutable) ? BindingType.Var : BindingType.Let;
+        }
+
         void Visit(AstNode node) {
             switch (node) {
                 case ProgramNode n:
@@ -79,26 +92,46 @@ namespace Blu {
                     break;
 
                 case BodyNode n:
-                    VisitBody(n);
+                    VisitBody(n, true);
                     break;
 
                 case StructNode n:
                     VisitStruct(n);
                     break;
+
+                case FunctionNode n:
+                    VisitFunction(n);
+                    break;
+
+                case BindingNode n:
+                    VisitBinding(n);
+                    break;
+                
+                case ConstBindingNode n:
+                    VisitConstBinding(n);
+                    break;
+
+                case IdentifierNode n:
+                    VisitIdentifier(n);
+                    break;
                 
                 default:
-                    throw new UnreachableException("Analyser - Visit");
+                    throw new UnreachableException($"Analyser - Visit ({node})");
             }
         }
 
         void VisitProgram(ProgramNode node) {
-            Visit(node.body);
+            VisitBody(node.body, false);
         }
 
-        void VisitBody(BodyNode node) {
+        void VisitBody(BodyNode node, bool newScope) {
+            if (newScope) PushScope();
+
             foreach (var n in node.statements) {
                 Visit(n);
             }
+
+            if (newScope) PopScope();
         }
 
         void VisitStruct(StructNode node) {
@@ -130,6 +163,52 @@ namespace Blu {
 
                 fieldNames.Add(field.token.lexeme);
             }
+        }
+
+        void VisitFunction(FunctionNode node) {
+            List<TypeSymbol> parameterTypes = new List<TypeSymbol>();
+            TypeSymbol? ret = null;
+
+            DeclareSymbol(new FunctionSymbol(node.token.lexeme, node.token, parameterTypes, ret));
+            PushScope();
+
+            var fieldNames = new HashSet<string>();
+            foreach (var param in node.parameters) {
+                if (fieldNames.Contains(param.token.lexeme)) {
+                    SoftError($"Function '{node.token.lexeme}' has duplicate item in parameter list named '{param.token.lexeme}'", param.token);
+                } else {
+                    TypeSymbol type = (TypeSymbol)FindSymbol(param.type.typeName);
+                    DeclareSymbol(new BindingSymbol(param.token.lexeme, param.token, (param.isMutable) ? BindingType.Var : BindingType.Let, type));
+                }
+
+                ErrorNoType(param.type.typeName, param.type.token);
+                fieldNames.Add(param.token.lexeme);
+            }
+
+            ErrorNoType(node.returnType.typeName, node.returnType.token);
+
+            VisitBody(node.body, false);
+
+            PopScope();
+        }
+
+        void VisitBinding(BindingNode node) {
+            var type = (TypeSymbol)FindSymbol(node.type?.token.lexeme);
+            DeclareSymbol(new BindingSymbol(node.token.lexeme, node.token, GetBindingType(node), type));
+
+            // FIXME: Visit expression
+        }
+
+        void VisitConstBinding(ConstBindingNode node) {
+            var type = (TypeSymbol)FindSymbol(node.type?.token.lexeme);
+            DeclareSymbol(new BindingSymbol(node.token.lexeme, node.token, BindingType.Constant, type));
+
+            // FIXME: Visit expression
+        }
+
+        void VisitIdentifier(IdentifierNode node) {
+            var id = FindSymbol(node.token.lexeme);
+            SoftError($"Identifier '{node.token.lexeme}' does not exist", node.token);
         }
     }
 }

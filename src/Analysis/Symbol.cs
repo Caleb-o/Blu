@@ -21,11 +21,25 @@ namespace Blu {
         }
     }
 
+    enum BindingType {
+        Constant, Let, Var,
+    }
+
+    sealed class BindingSymbol : Symbol {
+        public TypeSymbol type { get; private set; }
+        public BindingType bindingType { get; private set; }
+
+        public BindingSymbol(string identifier, Token? token, BindingType bindingType, TypeSymbol? type) : base(identifier, token) {
+            this.type = type;
+            this.bindingType = bindingType;
+        }
+    }
+
     sealed class FunctionSymbol : Symbol {
         public List<TypeSymbol> parameters { get; private set; }
         public TypeSymbol ret { get; private set; }
 
-        public FunctionSymbol(string identifier, Token token, List<TypeSymbol> parameters, TypeSymbol ret) : base(identifier, token) {
+        public FunctionSymbol(string identifier, Token token, List<TypeSymbol> parameters, TypeSymbol? ret) : base(identifier, token) {
             this.parameters = parameters;
             this.ret = ret;
         }

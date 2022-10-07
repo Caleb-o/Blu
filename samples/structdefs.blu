@@ -17,5 +17,3 @@ pub struct FooBaz(Foo, Bar) {}
 pub struct ref BarFoo(FooBaz) {
     x, y, z: int;
 }
-
-struct FooBaz {}
