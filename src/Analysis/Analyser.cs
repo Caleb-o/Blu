@@ -124,6 +124,10 @@ namespace Blu {
                 case TraitNode t:
                     VisitTrait(t);
                     break;
+
+                case CastNode c:
+                    VisitCast(c);
+                    break;
                 
                 // Ignore
                 case CSharpNode:
@@ -269,6 +273,12 @@ namespace Blu {
             DeclareSymbol(new TraitSymbol(node.token.lexeme, node.token, node.isPublic, functions));
         }
 
+        void VisitCast(CastNode node) {
+            Visit(node.expression);
+            var type = ErrorNoType(node.token?.lexeme, node.token);
+            node.SetTypeName(type?.identifier);
+        }
+
         void VerifyFunctionSignature(FunctionSignatureNode node, bool declareParams, List<TypeSymbol>? paramTypes) {
             var fieldNames = new HashSet<string>();
             foreach (var param in node.parameters) {
@@ -328,6 +338,17 @@ namespace Blu {
                     }
                     break;
                 }
+
+                case CastNode cast: {
+                    var expr = new TypeSymbol(cast.token?.lexeme);
+                    if (!expr.IsType(type)) {
+                        return expr;
+                    }
+                    break;
+                }
+
+                default:
+                    throw new UnreachableException($"CheckNodeType - {node}");
             }
 
             return null;
@@ -374,6 +395,7 @@ namespace Blu {
                 IdentifierNode id => GetTypeFromIdentifier(id),
                 BindingNode b => new TypeSymbol(b.type?.typeName, b.type?.token),
                 ConstBindingNode b => new TypeSymbol(b.type?.typeName, b.type?.token),
+                CastNode c => new TypeSymbol(c.token.lexeme),
                 _ => throw new UnreachableException($"Analyser - {node}"),
             };
         }

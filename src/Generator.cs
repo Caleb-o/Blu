@@ -79,6 +79,10 @@ namespace Blu {
                 case TraitNode t:
                     VisitTrait(t);
                     break;
+
+                case CastNode c:
+                    VisitCast(c);
+                    break;
                 
                 default:
                     throw new UnreachableException($"Generator - {node}");
@@ -233,6 +237,11 @@ namespace Blu {
 
             AppendLine("}");
             sb.AppendLine();
+        }
+        
+        void VisitCast(CastNode node) {
+            sb.Append($"({node.token.lexeme})");
+            Visit(node.expression);
         }
 
         void DefaultStructConstructor(StructNode node, string fields) {

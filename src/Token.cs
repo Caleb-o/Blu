@@ -2,10 +2,10 @@ namespace Blu {
     enum TokenKind {
         Plus, Minus, Star, Slash, Equal,
         Ampersand, Colon, Comma, Dot,
-        Semicolon,
+        Semicolon, Bang,
 
         Greater, Less, GreaterEq, LessEq,
-        EqualEq,
+        BangEq, EqualEq,
 
         LCurly, RCurly,
         LParen, RParen,
@@ -15,7 +15,7 @@ namespace Blu {
         
         Identifier, Let, Var, Return, Pub,
         If, Else, While, Struct, Ref, Fn,
-        Test, CSharp, Const, Trait,
+        Test, CSharp, Const, Trait, As,
 
         Error,
         EndOfFile,

@@ -39,6 +39,7 @@ namespace Blu {
                 '>' => MatchingCharToken(TokenKind.Greater, new [] {(TokenKind.GreaterEq, '=')}),
                 '<' => MatchingCharToken(TokenKind.Less, new [] {(TokenKind.LessEq, '=')}),
                 '=' => MatchingCharToken(TokenKind.Equal, new [] {(TokenKind.EqualEq, '=')}),
+                '!' => MatchingCharToken(TokenKind.Bang, new [] {(TokenKind.BangEq, '=')}),
 
                 '&' => MakeCharToken(TokenKind.Ampersand),
                 ':' => MakeCharToken(TokenKind.Colon),
@@ -168,6 +169,7 @@ namespace Blu {
 
                 "test" => TokenKind.Test,
                 "csharp" => TokenKind.CSharp,
+                "as" => TokenKind.As,
                 
                 _ => TokenKind.Identifier,
             };

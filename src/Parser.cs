@@ -136,8 +136,31 @@ namespace Blu {
             throw new UnreachableException("Parser - Primary");
         }
 
+        AstNode Unary() {
+            if (Kind().In(TokenKind.Minus, TokenKind.Bang)) {
+                Token op = this.current;
+                ConsumeAny();
+                return new UnaryOpNode(op, Primary());
+            }
+
+            return Primary();
+        }
+
+        AstNode Cast() {
+            AstNode node = Unary();
+
+            if (ConsumeIf(TokenKind.As)) {
+                Token identifier = this.current;
+                Consume(TokenKind.Identifier, "Expect identifier after 'as'");
+
+                node = new CastNode(identifier, node);
+            }
+
+            return node;
+        }
+
         AstNode Factor() {
-            AstNode node = Primary();
+            AstNode node = Cast();
 
             while (Kind().In(TokenKind.Star, TokenKind.Slash)) {
                 Token op = this.current;
