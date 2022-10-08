@@ -67,4 +67,24 @@ namespace Blu {
             this.ret = ret;
         }
     }
+
+    sealed class TraitSymbol : Symbol {
+        public bool isPublic { get; private set; }
+        public List<FunctionSymbol> functions { get; private set; }
+
+        public TraitSymbol(string identifier, Token token, bool isPublic, List<FunctionSymbol> functions) : base(identifier, token) {
+            this.isPublic = isPublic;
+            this.functions = functions;
+        }
+
+        FunctionSymbol? FindFunction(string identifier) {
+            foreach (var fn in functions) {
+                if (fn.identifier == identifier) {
+                    return fn;
+                }
+            }
+
+            return null;
+        }
+    }
 }

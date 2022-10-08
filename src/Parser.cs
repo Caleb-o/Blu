@@ -76,6 +76,10 @@ namespace Blu {
                     StructDefinition(true, GetBody());
                     break;
                 
+                case TokenKind.Trait:
+                    TraitDefinition(true, GetBody());
+                    break;
+                
                 default:
                     TopLevelStatements(true);
                     break;
@@ -95,6 +99,10 @@ namespace Blu {
 
                     case TokenKind.Struct:
                         StructDefinition(false, GetBody());
+                        break;
+
+                    case TokenKind.Trait:
+                        TraitDefinition(false, GetBody());
                         break;
 
                     default:
@@ -293,16 +301,30 @@ namespace Blu {
             body?.AddNode(new StructNode(identifier, isPublic, isRef, implements.ToArray(), fields.ToArray()));
         }
 
-        // grammar: (pub) fn identifier((param+:type)*) type { statement* }
-        void FunctionDefinition(bool isPublic, BodyNode? body) {
-            ConsumeAny(); // We know it's 'fn'
+        // grammar: (pub) trait identifier { fn_signature+ }
+        void TraitDefinition(bool isPublic, BodyNode? body) {
+            ConsumeAny();
 
             Token identifier = this.current;
-            Consume(TokenKind.Identifier, "Expected identifier after 'fn'");
+            Consume(TokenKind.Identifier, "Expect identifier after 'trait'");
+
+            Consume(TokenKind.LCurly, "Expect '{' after trait name");
+
+            List<FunctionSignatureNode> signatures = new List<FunctionSignatureNode>();
+            while (Kind() != TokenKind.RCurly) {
+                signatures.Add(GetFunctionSignature());
+                Consume(TokenKind.Semicolon, "Expect ';' after function signature");
+            }
+
+            Consume(TokenKind.RCurly, "Expect '}' after function signature list");
+
+            body?.AddNode(new TraitNode(identifier, isPublic, signatures.ToArray()));
+        }
+
+        List<ParameterNode> GetParameterList() {
+            List<ParameterNode> parameterList = new List<ParameterNode>();
 
             Consume(TokenKind.LParen, "Expected '(' after function name");
-
-            List<ParameterNode> parameterList = new List<ParameterNode>();
 
             // Parse 'mut x, y, z: int'
             // Parse 'x, y, z: int'
@@ -328,10 +350,25 @@ namespace Blu {
             }
 
             Consume(TokenKind.RParen, "Expected ')' after function parameter list");
+            return parameterList;
+        }
 
-
+        // grammar: (pub) fn identifier((param+:type)*) type { statement* }
+        void FunctionDefinition(bool isPublic, BodyNode? body) {
             // Add function definition to outer body
-            body?.AddNode(new FunctionNode(identifier, isPublic, parameterList.ToArray(), Type("parameter list"), Block()));
+            var signature = GetFunctionSignature();
+            body?.AddNode(new FunctionNode(signature.token, isPublic, signature, Block()));
+        }
+
+        FunctionSignatureNode GetFunctionSignature() {
+            Consume(TokenKind.Fn, "Expect 'fn' to start function signature");
+
+            Token identifier = this.current;
+            Consume(TokenKind.Identifier, "Expect identifier after 'fn'");
+
+            List<ParameterNode> parameterList = GetParameterList();
+
+            return new FunctionSignatureNode(identifier, parameterList.ToArray(), Type("parameter list"));
         }
 
         BodyNode Block() {

@@ -153,6 +153,7 @@ namespace Blu {
             return lexeme switch {
                 "pub" => TokenKind.Pub,
                 "struct" => TokenKind.Struct,
+                "trait" => TokenKind.Trait,
                 "fn" => TokenKind.Fn,
                 "return" => TokenKind.Return,
 

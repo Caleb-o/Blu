@@ -47,11 +47,14 @@ namespace Blu {
             DeclareSymbol(new TypeSymbol("string"));
         }
 
-        void ErrorNoType(string identifier, Token token) {
-            var foundType = FindSymbol(identifier);
+        TypeSymbol? ErrorNoType(string identifier, Token token) {
+            var foundType = (TypeSymbol?)FindSymbol(identifier);
             if (foundType == null) {
                 TypeError(identifier, token);
+                return null;
             }
+
+            return foundType;
         }
 
         Symbol? FindSymbol(string identifier) {
@@ -115,6 +118,10 @@ namespace Blu {
                     VisitIdentifier(n);
                     break;
                 
+                case TraitNode t:
+                    VisitTrait(t);
+                    break;
+                
                 // Ignore
                 case CSharpNode:
                     break;
@@ -171,32 +178,15 @@ namespace Blu {
 
         void VisitFunction(FunctionNode node) {
             List<TypeSymbol> parameterTypes = new List<TypeSymbol>();
-            TypeSymbol? ret = null;
 
             if (unit.isMainUnit && node.token.lexeme == "main") {
                 node.SetEntry();
             }
 
-            DeclareSymbol(new FunctionSymbol(node.token.lexeme, node.token, node.isPublic, parameterTypes, ret));
+            DeclareSymbol(new FunctionSymbol(node.token.lexeme, node.token, node.isPublic, parameterTypes, ErrorNoType(node.signature.returnType.token?.lexeme, node.signature.token)));
             PushScope();
 
-            var fieldNames = new HashSet<string>();
-            foreach (var param in node.parameters) {
-                if (fieldNames.Contains(param.token.lexeme)) {
-                    SoftError($"Function '{node.token.lexeme}' has duplicate item in parameter list named '{param.token.lexeme}'", param.token);
-                } else {
-                    TypeSymbol type = (TypeSymbol)FindSymbol(param.type.typeName);
-                    DeclareSymbol(new BindingSymbol(param.token.lexeme, param.token, false, (param.isMutable) ? BindingType.Var : BindingType.Let, type));
-
-                    param.SetTypeName(type.identifier);
-                }
-
-                ErrorNoType(param.type.typeName, param.type.token);
-                fieldNames.Add(param.token.lexeme);
-            }
-
-            ErrorNoType(node.returnType.typeName, node.returnType.token);
-            node.returnType.SetTypeName(((TypeSymbol?)FindSymbol(node.returnType.token.lexeme)).identifier);
+            VerifyFunctionSignature(node.signature, true, parameterTypes);
 
             VisitBody(node.body, false);
 
@@ -246,7 +236,49 @@ namespace Blu {
 
         void VisitIdentifier(IdentifierNode node) {
             var id = FindSymbol(node.token.lexeme);
-            SoftError($"Identifier '{node.token.lexeme}' does not exist", node.token);
+            if (id == null) {
+                SoftError($"Identifier '{node.token.lexeme}' does not exist", node.token);
+            }
+        }
+
+        void VisitTrait(TraitNode node) {
+            var trait = (TraitSymbol?)FindSymbol(node.token.lexeme);
+            if (trait != null) {
+                SoftError($"Trait '{node.token.lexeme}' already exists at {trait.token?.line}:{trait.token?.column} already exists", node.token);
+            }
+
+            List<FunctionSymbol> functions = new List<FunctionSymbol>();
+
+            foreach (var sig in node.signatures) {
+                List<TypeSymbol> paramTypes = new List<TypeSymbol>();
+                VerifyFunctionSignature(sig, false, paramTypes);
+
+                functions.Add(new FunctionSymbol(sig.token?.lexeme, sig.token, true, paramTypes, ErrorNoType(sig.returnType.token.lexeme, sig.token)));
+            }
+        }
+
+        void VerifyFunctionSignature(FunctionSignatureNode node, bool declareParams, List<TypeSymbol>? paramTypes) {
+            var fieldNames = new HashSet<string>();
+            foreach (var param in node.parameters) {
+                if (fieldNames.Contains(param.token.lexeme)) {
+                    SoftError($"Function '{node.token.lexeme}' has duplicate item in parameter list named '{param.token.lexeme}'", param.token);
+                } else {
+                    TypeSymbol type = (TypeSymbol)FindSymbol(param.type.typeName);
+
+                    if (declareParams) {
+                        DeclareSymbol(new BindingSymbol(param.token.lexeme, param.token, false, (param.isMutable) ? BindingType.Var : BindingType.Let, type));
+                    }
+
+                    param.SetTypeName(type.identifier);
+                    paramTypes?.Add(type);
+                }
+
+                ErrorNoType(param.type.typeName, param.type.token);
+                fieldNames.Add(param.token.lexeme);
+            }
+
+            ErrorNoType(node.returnType.typeName, node.returnType.token);
+            node.returnType.SetTypeName(((TypeSymbol?)FindSymbol(node.returnType.token.lexeme)).identifier);
         }
 
         // Returns the symbol type, that doesn't match the specified type

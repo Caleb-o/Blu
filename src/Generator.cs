@@ -67,6 +67,10 @@ namespace Blu {
                 case StructNode s:
                     VisitStruct(s);
                     break;
+
+                case TraitNode t:
+                    VisitTrait(t);
+                    break;
                 
                 default:
                     throw new UnreachableException($"Generator - {node}");
@@ -92,12 +96,9 @@ namespace Blu {
             AppendLine("}");
         }
 
-        void VisitFunctionNode(FunctionNode node) {
-            sb.Append(GetPadding());
-            sb.Append((node.isPublic || node.isEntry) ? "public " : "private ");
-            sb.Append((node.isEntry) ? "static " : "");
+        void VisitFunctionSignature(FunctionSignatureNode node, bool isEntry) {
             sb.Append($"{node.returnType.GetTypeName()} ");
-            sb.Append((node.isEntry) ? "Main" : node.token?.lexeme);
+            sb.Append((isEntry) ? "Main" : node.token?.lexeme);
             sb.Append('(');
 
             int i = 0;
@@ -109,7 +110,15 @@ namespace Blu {
                 }
             }
 
-            sb.Append(") ");
+            sb.Append(')');
+        }
+
+        void VisitFunctionNode(FunctionNode node) {
+            sb.Append(GetPadding());
+            sb.Append((node.isPublic || node.isEntry) ? "public " : "private ");
+            sb.Append((node.isEntry) ? "static " : "");
+            VisitFunctionSignature(node.signature, node.isEntry);
+            sb.Append(' ');
 
             VisitBodyNode(node.body);
             sb.AppendLine();
@@ -170,6 +179,8 @@ namespace Blu {
                 AppendLine($"{vis} struct {node.token?.lexeme} {{");
             }
 
+            // FIXME: Add inheritance/implements identifiers here
+
             depth++;
 
             string fields = "";
@@ -196,6 +207,24 @@ namespace Blu {
 
             depth--;
             AppendLine("}\n");
+        }
+
+        void VisitTrait(TraitNode node) {
+            string vis = (node.isPublic) ? "public" : "private";
+            AppendLine($"{vis} interface {node.token} {{");
+
+            depth++;
+
+            foreach (var sig in node.signatures) {
+                sb.Append(GetPadding());
+                VisitFunctionSignature(sig, false);
+                sb.AppendLine(";");
+            }
+
+            depth--;
+
+            AppendLine("}");
+            sb.AppendLine();
         }
 
         void DefaultStructConstructor(StructNode node, string fields) {
