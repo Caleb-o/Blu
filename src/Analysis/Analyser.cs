@@ -12,7 +12,7 @@ namespace Blu {
         }
 
         public bool Analyse() {
-            Visit(this.unit.ast);
+            VisitProgram(this.unit.ast);
             return this.hadError;
         }
 
@@ -247,13 +247,20 @@ namespace Blu {
                 SoftError($"Trait '{node.token.lexeme}' already exists at {trait.token?.line}:{trait.token?.column} already exists", node.token);
             }
 
-            List<FunctionSymbol> functions = new List<FunctionSymbol>();
+            var functions = new List<FunctionSymbol>();
+            var functionNames = new HashSet<string>();
 
             foreach (var sig in node.signatures) {
+                if (functionNames.Contains(sig.token?.lexeme)) {
+                    SoftError($"Trait '{node.token}' has duplicate function named '{sig.token.lexeme}'", sig.token);
+                }
+
                 List<TypeSymbol> paramTypes = new List<TypeSymbol>();
                 VerifyFunctionSignature(sig, false, paramTypes);
 
                 functions.Add(new FunctionSymbol(sig.token?.lexeme, sig.token, true, paramTypes, ErrorNoType(sig.returnType.token.lexeme, sig.token)));
+
+                functionNames.Add(sig.token.lexeme);
             }
         }
 

@@ -18,6 +18,14 @@ namespace Blu {
             return new string(' ', depth * 4);
         }
 
+        void Push() {
+            depth++;
+        }
+
+        void Pop() {
+            depth--;
+        }
+
         void AppendLine(string str) {
             sb.AppendLine(GetPadding() + str);
         }
@@ -86,13 +94,13 @@ namespace Blu {
 
         void VisitBodyNode(BodyNode node) {
             sb.AppendLine("{");
-            depth++;
+            Push();
 
             foreach (AstNode n in node.statements) {
                 Visit(n);
             }
 
-            depth--;
+            Pop();
             AppendLine("}");
         }
 
@@ -181,7 +189,7 @@ namespace Blu {
 
             // FIXME: Add inheritance/implements identifiers here
 
-            depth++;
+            Push();
 
             string fields = "";
             int i = 0;
@@ -205,7 +213,7 @@ namespace Blu {
             // Generate default ToString method
             DefaultStructToString(node);
 
-            depth--;
+            Pop();
             AppendLine("}\n");
         }
 
@@ -213,7 +221,7 @@ namespace Blu {
             string vis = (node.isPublic) ? "public" : "private";
             AppendLine($"{vis} interface {node.token} {{");
 
-            depth++;
+            Push();
 
             foreach (var sig in node.signatures) {
                 sb.Append(GetPadding());
@@ -221,7 +229,7 @@ namespace Blu {
                 sb.AppendLine(";");
             }
 
-            depth--;
+            Pop();
 
             AppendLine("}");
             sb.AppendLine();
@@ -230,13 +238,13 @@ namespace Blu {
         void DefaultStructConstructor(StructNode node, string fields) {
             AppendLine($"public {node.token?.lexeme}({fields}) {{");
 
-            depth++;
+            Push();
 
             foreach (var field in node.fields) {
                 AppendLine($"this.{field.token?.lexeme} = {field.token?.lexeme};");
             }
 
-            depth--;
+            Pop();
 
             AppendLine("}");
         }
@@ -244,7 +252,7 @@ namespace Blu {
         void DefaultStructToString(StructNode node) {
             AppendLine($"public override string ToString() {{");
 
-            depth++;
+            Push();
 
             sb.Append(GetPadding());
             sb.Append($"return $\"{node.token.lexeme} {{{{ ");
@@ -260,7 +268,7 @@ namespace Blu {
 
             sb.AppendLine(" }}\";");
 
-            depth--;
+            Pop();
 
             AppendLine("}");
         }
