@@ -15,6 +15,8 @@
                     Generator gen = new Generator();
                     gen.Generate(unit);
                 }
+
+                Console.WriteLine("Done!");
             } catch (Exception e) when (e is LexerException ||
                                         e is ParserException ||
                                         e is AnalyserException) {

@@ -48,13 +48,16 @@ namespace Blu {
         }
 
         TypeSymbol? ErrorNoType(string identifier, Token token) {
-            var foundType = (TypeSymbol?)FindSymbol(identifier);
-            if (foundType == null) {
+            var typeErr = () => {
                 TypeError(identifier, token);
-                return null;
-            }
+                return (TypeSymbol?)null;
+            };
 
-            return foundType;
+            return FindSymbol(identifier) switch {
+                TraitSymbol t => new TypeSymbol(t.identifier, t.token),
+                TypeSymbol t => t,
+                _ => typeErr(),
+            };
         }
 
         Symbol? FindSymbol(string identifier) {
@@ -262,6 +265,8 @@ namespace Blu {
 
                 functionNames.Add(sig.token.lexeme);
             }
+
+            DeclareSymbol(new TraitSymbol(node.token.lexeme, node.token, node.isPublic, functions));
         }
 
         void VerifyFunctionSignature(FunctionSignatureNode node, bool declareParams, List<TypeSymbol>? paramTypes) {
@@ -270,13 +275,13 @@ namespace Blu {
                 if (fieldNames.Contains(param.token.lexeme)) {
                     SoftError($"Function '{node.token.lexeme}' has duplicate item in parameter list named '{param.token.lexeme}'", param.token);
                 } else {
-                    TypeSymbol type = (TypeSymbol)FindSymbol(param.type.typeName);
+                    var type = (TypeSymbol?)ErrorNoType(param?.type?.typeName, param.token);
 
                     if (declareParams) {
                         DeclareSymbol(new BindingSymbol(param.token.lexeme, param.token, false, (param.isMutable) ? BindingType.Var : BindingType.Let, type));
                     }
 
-                    param.SetTypeName(type.identifier);
+                    param.SetTypeName(type?.identifier);
                     paramTypes?.Add(type);
                 }
 
