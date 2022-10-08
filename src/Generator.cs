@@ -143,7 +143,7 @@ namespace Blu {
         }
 
         void VisitUnaryOp(UnaryOpNode node) {
-            sb.Append($"{node.token} ");
+            sb.Append($"{node.token}");
             Visit(node.rhs);
         }
 
@@ -240,8 +240,9 @@ namespace Blu {
         }
         
         void VisitCast(CastNode node) {
-            sb.Append($"({node.token.lexeme})");
+            sb.Append($"({node.token.lexeme})(");
             Visit(node.expression);
+            sb.Append(')');
         }
 
         void DefaultStructConstructor(StructNode node, string fields) {
