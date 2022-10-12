@@ -3,7 +3,6 @@ namespace Blu {
     // Note: Mutability is not tied to the type
     sealed class TypeNode : AstNode
     {
-        public string? typeName { get; private set; }
         public bool isReference { get; private set; }
 
         public TypeNode(Token token, bool isReference) : base(token)
