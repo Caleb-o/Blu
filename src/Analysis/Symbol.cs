@@ -12,9 +12,18 @@ namespace Blu {
         public bool IsBuiltin() => token == null;
     }
 
+    // TODO:
+    /*
+        Type information should know if it can be coerced into another type.
+        eg. Foo class can coerce to object
+
+        Type information should know if it can successfully convert to other types
+        eg. (int) 1 can coerce to (float) 1.0
+    */
     sealed class TypeSymbol : Symbol {
         // Inner is for arrays
         public TypeSymbol? inner { get; private set; }
+        Dictionary<string, TypeSymbol> fields = new Dictionary<string, TypeSymbol>();
 
         public TypeSymbol(string identifier, Token? token = null, TypeSymbol? inner = null) : base(identifier, token) {
             this.inner = inner;
@@ -32,6 +41,16 @@ namespace Blu {
             }
 
             return identifier == other.identifier;
+        }
+
+        public bool HasField(string fieldName) {
+            return fields.ContainsKey(fieldName);
+        }
+
+        public TypeSymbol? GetField(string fieldName) {
+            return (fields.ContainsKey(fieldName))
+                ? fields[fieldName]
+                : null;
         }
 
         public override string ToString()
