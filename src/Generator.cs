@@ -3,15 +3,18 @@ using System.Text;
 namespace Blu {
     sealed class Generator {
         StringBuilder sb;
-        int depth = 1;
+        int depth = 0;
 
         public Generator() {
             this.sb = new StringBuilder();
         }
         
         public void Generate(CompilationUnit unit) {
+            GenerateDefaultUsings();
+            Push();
             VisitProgramNode(unit.ast);
-            File.WriteAllText("experimenting.txt", sb.ToString());
+            Pop();
+            File.WriteAllText("out.blucs", sb.ToString());
         }
 
         string GetPadding() {
@@ -28,6 +31,12 @@ namespace Blu {
 
         void AppendLine(string str) {
             sb.AppendLine(GetPadding() + str);
+        }
+
+        void GenerateDefaultUsings() {
+            AppendLine("using System;");
+
+            sb.AppendLine();
         }
 
         void Visit(AstNode node) {
