@@ -14,7 +14,7 @@ namespace Blu {
         Int, Float, String, True, False,
         
         Identifier, Let, Var, Return, Pub,
-        If, Else, While, Struct, Ref, Fn,
+        If, Else, While, Struct, Ref, Fn, Enum,
         Test, CSharp, Const, Trait, As,
 
         Error,

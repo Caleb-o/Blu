@@ -45,6 +45,7 @@ namespace Blu {
                 case ProgramNode n:         VisitProgramNode(n); break;
                 case BodyNode n:            VisitBodyNode(n); break;
                 case FunctionNode n:        VisitFunctionNode(n); break;
+                case EnumAdt n:             VisitEnumAdt(n); break;
                 case BinaryOpNode n:        VisitBinaryOp(n); break;
                 case UnaryOpNode n:         VisitUnaryOp(n); break;
                 case ConstBindingNode n:    VisitConstBinding(n); break;
@@ -107,6 +108,61 @@ namespace Blu {
 
             VisitBodyNode(node.body);
             sb.AppendLine();
+        }
+
+        void VisitEnumAdt(EnumAdt node) {
+            string enumId = node.token.lexeme;
+            string visibility = node.IsPublic ? "public" : "private";
+            sb.Append($"{GetPadding()}sealed {visibility} class {enumId} {{\n");
+            Push();
+
+            foreach (var (token, field) in node.Fields) {
+                switch (field) {
+                    case NumericField num: {
+                        sb.AppendLine($"{GetPadding()}const int {token.lexeme} = {num.Value};");
+                        break;
+                    }
+
+                    case TupleField tuple: {
+                        sb.AppendLine($"{GetPadding()}public class {token.lexeme} {{");
+                        Push();
+
+                        for (int i = 0; i < tuple.Types.Length; ++i) {
+                            var type = tuple.Types[i];
+                            sb.AppendLine($"{GetPadding()}public readonly {type.typeName} Item_{i};");
+                        }
+
+                        sb.Append($"{GetPadding()}public {token.lexeme}(");
+                        for (int i = 0; i < tuple.Types.Length; ++i) {
+                            var type = tuple.Types[i];
+                            sb.Append($"{type.typeName} item_{i}");
+
+                            if (i < tuple.Types.Length - 1) {
+                                sb.Append(", ");
+                            }
+                        }
+                        sb.AppendLine(") {");
+                        Push();
+
+                        for (int i = 0; i < tuple.Types.Length; ++i) {
+                            sb.AppendLine($"{GetPadding()}this.Item_{i} = item_{i};");
+                        }
+
+                        Pop();
+                        sb.AppendLine($"{GetPadding()}}}");
+
+                        Pop();
+                        sb.AppendLine($"{GetPadding()}}}");
+                        break;
+                    }
+
+                    default:
+                        throw new UnreachableException("Generator - VisitEnumAdt");
+                }
+            }
+
+            Pop();
+            sb.AppendLine($"{GetPadding()}}}");
         }
 
         void VisitBinaryOp(BinaryOpNode node) {

@@ -101,6 +101,7 @@ namespace Blu {
                 case BodyNode n:            VisitBody(n, true); break;
                 case StructNode n:          VisitStruct(n); break;
                 case FunctionNode n:        VisitFunction(n); break;
+                case EnumAdt n:             VisitEnumAdt(n); break;
                 case BindingNode n:         VisitBinding(n); break;
                 case ConstBindingNode n:    VisitConstBinding(n); break;
                 case IdentifierNode n:      VisitIdentifier(n); break;
@@ -162,7 +163,7 @@ namespace Blu {
         }
 
         void VisitFunction(FunctionNode node) {
-            List<TypeSymbol> parameterTypes = new List<TypeSymbol>();
+            List<TypeSymbol> parameterTypes = new();
 
             if (unit.isMainUnit && node.token.lexeme == "main") {
                 node.SetEntry();
@@ -176,6 +177,24 @@ namespace Blu {
             VisitBody(node.body, false);
 
             PopScope();
+        }
+
+        void VisitEnumAdt(EnumAdt node) {
+            HashSet<string> fields = new();
+
+            foreach (var (field, kind) in node.Fields) {
+                if (!fields.Add(field.lexeme)) {
+                    SoftError($"Enum '{node.token.lexeme}' has an identical field '{field.lexeme}'", field);
+                }
+
+                if (kind is TupleField tuple) {
+                    foreach (var type in tuple.Types) {
+                        _ = ErrorNoType(type.token.lexeme, type.token);
+                    }
+                }
+            }
+
+            DeclareSymbol(new EnumSymbol(node.token.lexeme, fields, node.token));
         }
 
         void VisitBinding(BindingNode node) {

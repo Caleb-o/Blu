@@ -78,6 +78,10 @@ namespace Blu {
                 case TokenKind.Struct:
                     StructDefinition(true, GetBody());
                     break;
+
+                case TokenKind.Enum:
+                    EnumDefinition(true, GetBody());
+                    break;
                 
                 case TokenKind.Trait:
                     TraitDefinition(true, GetBody());
@@ -102,6 +106,10 @@ namespace Blu {
 
                     case TokenKind.Struct:
                         StructDefinition(false, GetBody());
+                        break;
+                    
+                    case TokenKind.Enum:
+                        EnumDefinition(false, GetBody());
                         break;
 
                     case TokenKind.Trait:
@@ -340,6 +348,81 @@ namespace Blu {
             body.AddNode(new StructNode(identifier, isPublic, isRef, implements.ToArray(), fields.ToArray()));
         }
 
+        void EnumDefinition(bool isPublic, BodyNode body) {
+            Token token = current;
+            ConsumeAny();
+
+            Token Identifier = current;
+            Consume(TokenKind.Identifier, "Expect identifier after 'enum'");
+
+            Consume(TokenKind.LCurly, "Expect '{' after enum name");
+            List<(Token, AdtField)> fields = new();
+
+            if (current.kind != TokenKind.RCurly) {
+                int counter = 0;
+
+                Token identifier = current;
+                Consume(TokenKind.Identifier, "Expect identifier in enum type");
+                List<TypeNode> types = null;
+
+                if (current.kind == TokenKind.LParen) {
+                    ConsumeAny();
+                    types = new();
+                    
+                    types.Add(Type("enum field decl"));
+
+                    while (current.kind == TokenKind.Comma) {
+                        ConsumeAny();
+                        types.Add(Type("enum field decl"));
+                    }
+
+                    Consume(TokenKind.RParen, "Expect ')' after tuple type list");
+                }
+
+                if (types == null) {
+                    fields.Add((identifier, new NumericField(counter)));
+                } else {
+                    fields.Add((identifier, new TupleField(types.ToArray())));
+                }
+
+                counter++;
+
+                while (current.kind == TokenKind.Comma) {
+                    ConsumeAny();
+
+                    identifier = current;
+                    Consume(TokenKind.Identifier, "Expect identifier in enum type");
+                    types = null;
+
+                    if (current.kind == TokenKind.LParen) {
+                        ConsumeAny();
+                        types = new();
+                        
+                        types.Add(Type("enum field decl"));
+
+                        while (current.kind == TokenKind.Comma) {
+                            ConsumeAny();
+                            types.Add(Type("enum field decl"));
+                        }
+
+                        Consume(TokenKind.RParen, "Expect ')' after tuple type list");
+                    }
+
+                    if (types == null) {
+                        fields.Add((identifier, new NumericField(counter)));
+                    } else {
+                        fields.Add((identifier, new TupleField(types.ToArray())));
+                    }
+
+                    counter++;
+                }
+            }
+
+            Consume(TokenKind.RCurly, "Expect '}' after enum body");
+
+            body.statements.Add(new EnumAdt(isPublic, Identifier, fields.ToArray()));
+        }
+
         // grammar: (pub) trait identifier { fn_signature+ }
         void TraitDefinition(bool isPublic, BodyNode body) {
             ConsumeAny();
@@ -441,6 +524,7 @@ namespace Blu {
         TypeNode Type(string where) {
             bool isReference = ConsumeIf(TokenKind.Ref);
 
+            // TODO: Recursive/Verbose types
             Token typeName = this.current;
             Consume(TokenKind.Identifier, $"Expected type name after {where}");
 

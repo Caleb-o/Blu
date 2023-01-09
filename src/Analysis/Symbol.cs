@@ -24,8 +24,8 @@ namespace Blu {
     */
     sealed class TypeSymbol : Symbol {
         // Inner is for arrays
-        public TypeSymbol inner { get; private set; }
-        Dictionary<string, TypeSymbol> fields = new Dictionary<string, TypeSymbol>();
+        public readonly TypeSymbol inner;
+        readonly Dictionary<string, TypeSymbol> fields = new();
 
         public TypeSymbol(string identifier, Token token = null, TypeSymbol inner = null) : base(identifier, token) {
             this.inner = inner;
@@ -66,9 +66,9 @@ namespace Blu {
     }
 
     sealed class BindingSymbol : Symbol {
-        public bool isPublic { get; private set; }
-        public TypeSymbol type { get; private set; }
-        public BindingType bindingType { get; private set; }
+        public readonly bool isPublic;
+        public readonly TypeSymbol type;
+        public readonly BindingType bindingType;
 
         public BindingSymbol(string identifier, Token token, bool isPublic, BindingType bindingType, TypeSymbol type) : base(identifier, token) {
             this.isPublic = isPublic;
@@ -78,9 +78,9 @@ namespace Blu {
     }
 
     sealed class FunctionSymbol : Symbol {
-        public bool isPublic { get; private set; }
-        public List<TypeSymbol> parameters { get; private set; }
-        public TypeSymbol ret { get; private set; }
+        public readonly bool isPublic;
+        public readonly List<TypeSymbol> parameters;
+        public readonly TypeSymbol ret;
 
         public FunctionSymbol(string identifier, Token token, bool isPublic, List<TypeSymbol> parameters, TypeSymbol ret) : base(identifier, token) {
             this.isPublic = isPublic;
@@ -89,9 +89,18 @@ namespace Blu {
         }
     }
 
+    sealed class EnumSymbol : Symbol
+    {
+        readonly HashSet<string> FieldNames;
+
+        public EnumSymbol(string identifier, HashSet<string> fieldNames, Token token = null) : base(identifier, token) {
+            this.FieldNames = fieldNames;
+        }
+    }
+
     sealed class TraitSymbol : Symbol {
-        public bool isPublic { get; private set; }
-        public List<FunctionSymbol> functions { get; private set; }
+        public readonly bool isPublic;
+        public readonly List<FunctionSymbol> functions;
 
         public TraitSymbol(string identifier, Token token, bool isPublic, List<FunctionSymbol> functions) : base(identifier, token) {
             this.isPublic = isPublic;
