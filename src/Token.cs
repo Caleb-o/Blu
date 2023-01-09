@@ -25,9 +25,9 @@ namespace Blu {
         public TokenKind kind { get; private set; }
         public int line  { get; private set; }
         public int column { get; private set; }
-        public string? lexeme { get; private set; }
+        public string lexeme { get; private set; }
 
-        public Token(TokenKind kind, int line, int column, string? lexeme) {
+        public Token(TokenKind kind, int line, int column, string lexeme) {
             this.kind = kind;
             this.line = line;
             this.column = column;

@@ -4,13 +4,13 @@ using System.Diagnostics;
 namespace Blu {
     sealed class ConstBindingNode : AstNode
     {
-        public bool isPublic { get; private set; }
-        public TypeNode? type { get; private set; }
-        public AstNode? expression { get; private set; }
-        public bool useInference { get; private set; }
+        public TypeNode type;
+        public readonly bool isPublic;
+        public readonly AstNode expression;
+        public readonly bool useInference;
 
         // Binding was provided with a type
-        public ConstBindingNode(Token token, bool isPublic, TypeNode type, AstNode? expression) : base(token)
+        public ConstBindingNode(Token token, bool isPublic, TypeNode type, AstNode expression) : base(token)
         {
             this.isPublic = isPublic;
             this.type = type;

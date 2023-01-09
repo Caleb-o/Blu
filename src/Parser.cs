@@ -1,8 +1,11 @@
+using System.Collections.Generic;
+using System.IO;
+
 namespace Blu {
     sealed class Parser {
-        Lexer? lexer;
-        Token? current;
-        CompilationUnit? unit;
+        Lexer lexer;
+        Token current;
+        CompilationUnit unit;
 
         public Parser(string fileName, bool isEntry) {
             // We will throw if the filename is wrong or file is unreadable
@@ -14,18 +17,18 @@ namespace Blu {
             this.unit = new CompilationUnit(fileName, source, new ProgramNode(), isEntry);
         }
 
-        public CompilationUnit? Parse() {
+        public CompilationUnit Parse() {
             TopLevel();
             return this.unit;
         }
 
         void Error(string message) {
-            throw new ParserException(this.unit?.fileName, message, (int)this.current?.line, (int)this.current?.column);
+            throw new ParserException(this.unit.fileName, message, (int)this.current.line, (int)this.current.column);
         }
 
         void Consume(TokenKind kind, string message) {
             if (Kind() == kind) {
-                this.current = this.lexer?.Next();
+                this.current = this.lexer.Next();
                 return;
             }
 
@@ -34,7 +37,7 @@ namespace Blu {
 
         bool ConsumeIf(TokenKind kind) {
             if (Kind() == kind) {
-                this.current = this.lexer?.Next();
+                this.current = this.lexer.Next();
                 return true;
             }
 
@@ -42,12 +45,12 @@ namespace Blu {
         }
 
         void ConsumeAny() {
-            this.current = this.lexer?.Next();
+            this.current = this.lexer.Next();
         }
         
         // Get current token's kind
-        TokenKind? Kind() => this.current?.kind;
-        BodyNode? GetBody() => this.unit?.ast?.body;
+        TokenKind Kind() => this.current.kind;
+        BodyNode GetBody() => this.unit.ast.body;
 
         void TopLevelStatements(bool isPublic) {
             switch (Kind()) {
@@ -187,7 +190,7 @@ namespace Blu {
             return Term();
         }
 
-        void Statement(BodyNode? body) {
+        void Statement(BodyNode body) {
             switch (Kind()) {
                 case TokenKind.Const:
                     ConstDeclaration(false, body);
@@ -205,6 +208,11 @@ namespace Blu {
                     CSharpBlock(body);
                     break;
                 
+                case TokenKind.Return: {
+                    ReturnStatement(body);
+                    break;
+                }
+                
                 default:
                     Error("Unknown statement found");
                     break;
@@ -214,54 +222,62 @@ namespace Blu {
         }
 
         // grammar: csharp string
-        void CSharpBlock(BodyNode? body) {
+        void CSharpBlock(BodyNode body) {
             ConsumeAny();
 
             Token code = this.current;
             Consume(TokenKind.String, "Expect string after 'csharp' keyword");
 
-            body?.AddNode(new CSharpNode(code));
+            body.AddNode(new CSharpNode(code));
+        }
+
+        void ReturnStatement(BodyNode body) {
+            Token token = current;
+            ConsumeAny();
+
+            AstNode rhs = Expression();
+            body.statements.Add(new Return(token, rhs));
         }
 
         // grammar: const identifier(: type) = expression
-        void ConstDeclaration(bool isPublic, BodyNode? body) {
+        void ConstDeclaration(bool isPublic, BodyNode body) {
             ConsumeAny(); // We know it's 'const'
 
             Token identifier = this.current;
             Consume(TokenKind.Identifier, "Expect identifier after 'const'");
 
-            TypeNode? type = TryGetTypeIdentifier("const identifier");
+            TypeNode type = TryGetTypeIdentifier("const identifier");
 
             // An expression is required since it is constant
             Consume(TokenKind.Equal, "Expect '=' after identifier");
             
             if (type == null)
-                body?.AddNode(new ConstBindingNode(identifier, isPublic, Expression()));
+                body.AddNode(new ConstBindingNode(identifier, isPublic, Expression()));
             else
-                body?.AddNode(new ConstBindingNode(identifier, isPublic, type, Expression()));
+                body.AddNode(new ConstBindingNode(identifier, isPublic, type, Expression()));
         }
 
         // grammar: (let|var) id = expression
-        void BindingDeclaration(bool isVar, BodyNode? body) {
+        void BindingDeclaration(bool isVar, BodyNode body) {
             ConsumeAny();
 
             Token identifier = this.current;
             Consume(TokenKind.Identifier, "Expect identifier after 'var'/'let'");
 
-            TypeNode? type = TryGetTypeIdentifier("'var'/'let'");
+            TypeNode type = TryGetTypeIdentifier("'var'/'let'");
 
             // An expression is required since it is constant
             // FIXME: Allow for bindings without assigned value
             Consume(TokenKind.Equal, "Expect '=' after identifier");
             
             if (type == null)
-                body?.AddNode(new BindingNode(identifier, isVar, Expression()));
+                body.AddNode(new BindingNode(identifier, isVar, Expression()));
             else
-                body?.AddNode(new BindingNode(identifier, isVar, type, Expression()));
+                body.AddNode(new BindingNode(identifier, isVar, type, Expression()));
         }
 
         // grammar: (pub) struct (ref) identifier { field* }
-        void StructDefinition(bool isPublic, BodyNode? body) {
+        void StructDefinition(bool isPublic, BodyNode body) {
             ConsumeAny(); // We know it's 'struct'
 
             bool isRef = ConsumeIf(TokenKind.Ref);
@@ -269,7 +285,7 @@ namespace Blu {
             Token identifier = this.current;
             Consume(TokenKind.Identifier, "Expected identifier after 'struct'/'ref'");
 
-            List<Token> implements = new List<Token>();
+            List<Token> implements = new();
             if (ConsumeIf(TokenKind.LParen)) {
                 implements.Add(this.current);
                 Consume(TokenKind.Identifier, "Expect identifier in inheritance list");
@@ -286,11 +302,11 @@ namespace Blu {
 
             Consume(TokenKind.LCurly, "Expected '{' after struct identifier");
 
-            List<StructField> fields = new List<StructField>();
+            List<StructField> fields = new();
 
             if (Kind() != TokenKind.RCurly) {
                 var collectField = () => {
-                    List<Token> identifiers = new List<Token>();
+                    List<Token> identifiers = new();
 
                     identifiers.Add(this.current);
                     Consume(TokenKind.Identifier, "Expect identifier in field list");
@@ -321,11 +337,11 @@ namespace Blu {
 
             Consume(TokenKind.RCurly, "Expected '}' after struct fields");
 
-            body?.AddNode(new StructNode(identifier, isPublic, isRef, implements.ToArray(), fields.ToArray()));
+            body.AddNode(new StructNode(identifier, isPublic, isRef, implements.ToArray(), fields.ToArray()));
         }
 
         // grammar: (pub) trait identifier { fn_signature+ }
-        void TraitDefinition(bool isPublic, BodyNode? body) {
+        void TraitDefinition(bool isPublic, BodyNode body) {
             ConsumeAny();
 
             Token identifier = this.current;
@@ -341,11 +357,11 @@ namespace Blu {
 
             Consume(TokenKind.RCurly, "Expect '}' after function signature list");
 
-            body?.AddNode(new TraitNode(identifier, isPublic, signatures.ToArray()));
+            body.AddNode(new TraitNode(identifier, isPublic, signatures.ToArray()));
         }
 
         List<ParameterNode> GetParameterList() {
-            List<ParameterNode> parameterList = new List<ParameterNode>();
+            List<ParameterNode> parameterList = new();
 
             Consume(TokenKind.LParen, "Expected '(' after function name");
 
@@ -377,10 +393,10 @@ namespace Blu {
         }
 
         // grammar: (pub) fn identifier((param+:type)*) type { statement* }
-        void FunctionDefinition(bool isPublic, BodyNode? body) {
+        void FunctionDefinition(bool isPublic, BodyNode body) {
             // Add function definition to outer body
             var signature = GetFunctionSignature();
-            body?.AddNode(new FunctionNode(signature.token, isPublic, signature, Block()));
+            body.AddNode(new FunctionNode(signature.token, isPublic, signature, Block()));
         }
 
         FunctionSignatureNode GetFunctionSignature() {
@@ -408,7 +424,7 @@ namespace Blu {
             return newBlock;
         }
 
-        TypeNode? TryGetTypeIdentifier(string where) {
+        TypeNode TryGetTypeIdentifier(string where) {
             if (Kind() != TokenKind.Colon) {
                 return null;
             }
@@ -434,7 +450,7 @@ namespace Blu {
         (bool, List<Token>) GetParameter() {
             bool isMutable = ConsumeIf(TokenKind.Var);
 
-            List<Token> parameters = new List<Token>();
+            List<Token> parameters = new();
 
             parameters.Add(this.current);
             Consume(TokenKind.Identifier, "Expected parameter identifier");

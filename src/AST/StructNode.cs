@@ -1,12 +1,12 @@
 namespace Blu {
     sealed class StructNode : AstNode
     {
-        public bool isPublic { get; private set; }
-        public bool isRef { get; private set; }
-        public Token[] implements { get; private set; }
-        public StructField[] fields { get; private set; }
+        public readonly bool isPublic;
+        public readonly bool isRef;
+        public readonly Token[] implements;
+        public readonly StructField[] fields;
 
-        public StructNode(Token? token, bool isPublic, bool isRef, Token[] implements, StructField[] fields) : base(token)
+        public StructNode(Token token, bool isPublic, bool isRef, Token[] implements, StructField[] fields) : base(token)
         {
             this.isPublic = isPublic;
             this.isRef = isRef;

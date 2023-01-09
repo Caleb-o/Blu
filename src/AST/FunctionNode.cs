@@ -3,9 +3,9 @@ using System.Text;
 namespace Blu {
     sealed class FunctionNode : AstNode
     {
-        public bool isPublic { get; private set; }
-        public FunctionSignatureNode signature { get; private set; }
-        public BodyNode body { get; private set; }
+        public readonly bool isPublic;
+        public readonly FunctionSignatureNode signature;
+        public readonly BodyNode body;
 
         public bool isEntry { get; private set; } = false;
 

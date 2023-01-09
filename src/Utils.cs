@@ -1,3 +1,7 @@
+using System;
+using System.IO;
+using System.Linq;
+
 namespace Blu {
     [Serializable]
     class LexerException : Exception
@@ -64,16 +68,20 @@ namespace Blu {
             throw new BluException(message);
         }
 
-        public static Tuple<bool, string?> CheckInEnvPath(string fileName)
+        public static void RunNonNull(object item, Action fn) {
+            if (item != null) fn();
+        }
+
+        public static (bool, string) CheckInEnvPath(string fileName)
         {
             var values = Environment.GetEnvironmentVariable("PATH");
             foreach (var path in values.Split(Path.PathSeparator))
             {
                 var fullPath = Path.Combine(path, fileName);
                 if (File.Exists(fullPath))
-                    return new Tuple<bool, string?>(true, fullPath);
+                    return new(true, fullPath);
             }
-            return new Tuple<bool, string?>(false, null);
+            return new(false, null);
         }
     }
 }

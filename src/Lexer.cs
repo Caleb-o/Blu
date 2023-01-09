@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 
 namespace Blu {
@@ -30,16 +31,15 @@ namespace Blu {
 
             // Character or error
             return peeked switch {
-                // TODO: Multi-character tokens
                 '+' => MakeCharToken(TokenKind.Plus),
                 '-' => MakeCharToken(TokenKind.Minus),
                 '*' => MakeCharToken(TokenKind.Star),
                 '/' => MakeCharToken(TokenKind.Slash),
 
-                '>' => MatchingCharToken(TokenKind.Greater, new [] {(TokenKind.GreaterEq, '=')}),
-                '<' => MatchingCharToken(TokenKind.Less, new [] {(TokenKind.LessEq, '=')}),
-                '=' => MatchingCharToken(TokenKind.Equal, new [] {(TokenKind.EqualEq, '=')}),
-                '!' => MatchingCharToken(TokenKind.Bang, new [] {(TokenKind.BangEq, '=')}),
+                '>' => MatchingCharToken(TokenKind.Greater, (TokenKind.GreaterEq, '=')),
+                '<' => MatchingCharToken(TokenKind.Less, (TokenKind.LessEq, '=')),
+                '=' => MatchingCharToken(TokenKind.Equal, (TokenKind.EqualEq, '=')),
+                '!' => MatchingCharToken(TokenKind.Bang, (TokenKind.BangEq, '=')),
 
                 '&' => MakeCharToken(TokenKind.Ampersand),
                 ':' => MakeCharToken(TokenKind.Colon),
@@ -75,6 +75,18 @@ namespace Blu {
 
         Token MakeErrorToken(string message) {
             return new Token(TokenKind.Error, this.line, this.column, message);
+        }
+
+        Token MatchingCharToken(TokenKind single, (TokenKind, char) matches) {
+            char next = PeekNext();
+
+            if (next == matches.Item2) {
+                Advance(); Advance();
+                return new CharToken(matches.Item1, this.line, this.column - 2);
+            }
+
+            Advance();
+            return new CharToken(single, this.line, this.column - 1);
         }
 
         Token MatchingCharToken(TokenKind single, (TokenKind, char)[] matches) {
@@ -149,8 +161,7 @@ namespace Blu {
             return MakeToken(kind, column, this.source[ip..this.ip]);
         }
 
-        // TODO: Change to ReadOnlySpan<char> when supported with pattern matching
-        TokenKind FindKeyword(string lexeme) {
+        TokenKind FindKeyword(ReadOnlySpan<char> lexeme) {
             return lexeme switch {
                 "pub" => TokenKind.Pub,
                 "struct" => TokenKind.Struct,

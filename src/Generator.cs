@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 
 namespace Blu {
@@ -41,57 +42,20 @@ namespace Blu {
 
         void Visit(AstNode node) {
             switch (node) {
-                case ProgramNode p:
-                    VisitProgramNode(p);
-                    break;
-                
-                case BodyNode b:
-                    VisitBodyNode(b);
-                    break;
-                
-                case FunctionNode f:
-                    VisitFunctionNode(f);
-                    break;
-
-                case BinaryOpNode b:
-                    VisitBinaryOp(b);
-                    break;
-                
-                case UnaryOpNode u:
-                    VisitUnaryOp(u);
-                    break;
-                
-                case ConstBindingNode b:
-                    VisitConstBinding(b);
-                    break;
-                
-                case BindingNode b:
-                    VisitBinding(b);
-                    break;
-                
-                case LiteralNode l:
-                    VisitLiteral(l);
-                    break;
-                
-                case CSharpNode c:
-                    VisitCSharp(c);
-                    break;
-                
-                case IdentifierNode i:
-                    sb.Append(i.token?.lexeme);
-                    break;
-                
-                case StructNode s:
-                    VisitStruct(s);
-                    break;
-
-                case TraitNode t:
-                    VisitTrait(t);
-                    break;
-
-                case CastNode c:
-                    VisitCast(c);
-                    break;
+                case ProgramNode n:         VisitProgramNode(n); break;
+                case BodyNode n:            VisitBodyNode(n); break;
+                case FunctionNode n:        VisitFunctionNode(n); break;
+                case BinaryOpNode n:        VisitBinaryOp(n); break;
+                case UnaryOpNode n:         VisitUnaryOp(n); break;
+                case ConstBindingNode n:    VisitConstBinding(n); break;
+                case BindingNode n:         VisitBinding(n); break;
+                case LiteralNode n:         VisitLiteral(n); break;
+                case CSharpNode n:          VisitCSharp(n); break;
+                case IdentifierNode n:      sb.Append(n.token.lexeme); break;
+                case StructNode n:          VisitStruct(n); break;
+                case TraitNode n:           VisitTrait(n); break;
+                case CastNode n:            VisitCast(n); break;
+                case Return n:              VisitReturn(n); break;
                 
                 default:
                     throw new UnreachableException($"Generator - {node}");
@@ -252,6 +216,14 @@ namespace Blu {
             sb.Append($"({node.token.lexeme})(");
             Visit(node.expression);
             sb.Append(')');
+        }
+
+        void VisitReturn(Return node) {
+            sb.Append("return");
+            if (node.rhs != null) {
+                sb.Append(' ');
+                Visit(node.rhs);
+            }
         }
 
         void DefaultStructConstructor(StructNode node, string fields) {

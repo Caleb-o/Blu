@@ -1,7 +1,7 @@
 namespace Blu {
     sealed class StructField : AstNode
     {
-        public TypeNode? type { get; private set; }
+        public readonly TypeNode type;
 
         public StructField(Token token, TypeNode type) : base(token)
         {

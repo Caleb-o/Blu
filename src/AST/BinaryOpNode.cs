@@ -3,8 +3,8 @@ using System.Text;
 namespace Blu {
     sealed class BinaryOpNode : AstNode
     {
-        public AstNode lhs { get; private set; }
-        public AstNode rhs { get; private set; }
+        public readonly AstNode lhs;
+        public readonly AstNode rhs;
 
         public BinaryOpNode(Token token, AstNode lhs, AstNode rhs) : base(token)
         {

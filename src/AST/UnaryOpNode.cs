@@ -3,7 +3,7 @@ using System.Text;
 namespace Blu {
     sealed class UnaryOpNode : AstNode
     {
-        public AstNode rhs { get; private set; }
+        public readonly AstNode rhs;
 
         public UnaryOpNode(Token token, AstNode rhs) : base(token)
         {

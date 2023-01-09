@@ -1,10 +1,10 @@
 namespace Blu {
     sealed class TraitNode : AstNode
     {
-        public bool isPublic { get; private set; }
-        public FunctionSignatureNode[] signatures { get; private set; }
+        public readonly bool isPublic;
+        public readonly FunctionSignatureNode[] signatures;
 
-        public TraitNode(Token? token, bool isPublic, FunctionSignatureNode[] signatures) : base(token)
+        public TraitNode(Token token, bool isPublic, FunctionSignatureNode[] signatures) : base(token)
         {
             this.isPublic = isPublic;
             this.signatures = signatures;

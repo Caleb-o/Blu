@@ -1,8 +1,8 @@
 namespace Blu {
     sealed class ParameterNode : AstNode
     {
-        public TypeNode type { get; private set; }
-        public bool isMutable { get; private set; }
+        public readonly TypeNode type;
+        public readonly bool isMutable;
 
         public ParameterNode(Token token, TypeNode type, bool isMutable) : base(token)
         {

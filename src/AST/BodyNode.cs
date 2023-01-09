@@ -1,9 +1,9 @@
-using System.Text;
+using System.Collections.Generic;
 
 namespace Blu {
     sealed class BodyNode : AstNode
     {
-        public List<AstNode> statements { get; private set; } = new List<AstNode>();
+        public readonly List<AstNode> statements = new();
         
         public BodyNode() : base(null)
         {

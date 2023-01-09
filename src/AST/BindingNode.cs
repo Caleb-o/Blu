@@ -1,13 +1,13 @@
 namespace Blu {
     sealed class BindingNode : AstNode
     {
-        public TypeNode? type { get; private set; }
-        public AstNode? expression { get; private set; }
-        public bool isMutable { get; private set; }
-        public bool useInference { get; private set; }
+        public readonly TypeNode type;
+        public readonly AstNode expression;
+        public readonly bool isMutable;
+        public readonly bool useInference;
 
         // Binding was provided with a type
-        public BindingNode(Token token, bool isMutable, TypeNode type, AstNode? expression) : base(token)
+        public BindingNode(Token token, bool isMutable, TypeNode type, AstNode expression) : base(token)
         {
             this.type = type;
             this.expression = expression;

@@ -1,11 +1,11 @@
 namespace Blu {
     abstract class AstNode {
-        public Token? token { get; protected set; }
+        public Token token { get; protected set; }
         public bool isExpression { get; protected set; }
         
         public string typeName { get; protected set; } = string.Empty;
 
-        public AstNode(Token? token) {
+        public AstNode(Token token) {
             this.token = token;
         }
 

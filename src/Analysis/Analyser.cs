@@ -1,6 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace Blu {
     sealed class Analyser {
-        List<List<Symbol>> symbolTable = new List<List<Symbol>>();
+        List<List<Symbol>> symbolTable = new();
         bool hadError = false;
         CompilationUnit unit;
 
@@ -27,12 +31,12 @@ namespace Blu {
         void SoftError(string message, Token token) {
             hadError = true;
 
-            Console.WriteLine($"Error occured: {message} in {this.unit?.fileName} at {token.line}:{token.column}");
+            Console.WriteLine($"Error occured: {message} in {this.unit.fileName} at {token.line}:{token.column}");
         }
 
         // Note: This error will cause the compilation to stop entirely
         void Error(string message, Token token) {
-            throw new ParserException(this.unit?.fileName, message, (int)token.line, (int)token.column);
+            throw new ParserException(this.unit.fileName, message, (int)token.line, (int)token.column);
         }
 
         void TypeError(string identifier, Token token) {
@@ -47,10 +51,10 @@ namespace Blu {
             DeclareSymbol(new TypeSymbol("string"));
         }
 
-        TypeSymbol? ErrorNoType(string identifier, Token token) {
+        TypeSymbol ErrorNoType(string identifier, Token token) {
             var typeErr = () => {
                 TypeError(identifier, token);
-                return (TypeSymbol?)null;
+                return (TypeSymbol)null;
             };
 
             return FindSymbol(identifier) switch {
@@ -60,7 +64,7 @@ namespace Blu {
             };
         }
 
-        Symbol? FindSymbol(string identifier) {
+        Symbol FindSymbol(string identifier) {
             for (int i = symbolTable.Count - 1; i >= 0; --i) {
                 var table = symbolTable[i];
 
@@ -93,45 +97,19 @@ namespace Blu {
 
         void Visit(AstNode node) {
             switch (node) {
-                case ProgramNode n:
-                    VisitProgram(n);
-                    break;
-
-                case BodyNode n:
-                    VisitBody(n, true);
-                    break;
-
-                case StructNode n:
-                    VisitStruct(n);
-                    break;
-
-                case FunctionNode n:
-                    VisitFunction(n);
-                    break;
-
-                case BindingNode n:
-                    VisitBinding(n);
-                    break;
-                
-                case ConstBindingNode n:
-                    VisitConstBinding(n);
-                    break;
-
-                case IdentifierNode n:
-                    VisitIdentifier(n);
-                    break;
-                
-                case TraitNode t:
-                    VisitTrait(t);
-                    break;
-
-                case CastNode c:
-                    VisitCast(c);
-                    break;
+                case ProgramNode n:         VisitProgram(n); break;
+                case BodyNode n:            VisitBody(n, true); break;
+                case StructNode n:          VisitStruct(n); break;
+                case FunctionNode n:        VisitFunction(n); break;
+                case BindingNode n:         VisitBinding(n); break;
+                case ConstBindingNode n:    VisitConstBinding(n); break;
+                case IdentifierNode n:      VisitIdentifier(n); break;
+                case TraitNode n:           VisitTrait(n); break;
+                case CastNode n:            VisitCast(n); break;
+                case Return n:              VisitReturn(n); break;
                 
                 // Ignore
-                case CSharpNode:
-                    break;
+                case CSharpNode: break;
                 
                 default:
                     throw new UnreachableException($"Analyser - Visit ({node})");
@@ -190,7 +168,7 @@ namespace Blu {
                 node.SetEntry();
             }
 
-            DeclareSymbol(new FunctionSymbol(node.token.lexeme, node.token, node.isPublic, parameterTypes, ErrorNoType(node.signature.returnType.token?.lexeme, node.signature.token)));
+            DeclareSymbol(new FunctionSymbol(node.token.lexeme, node.token, node.isPublic, parameterTypes, ErrorNoType(node.signature.returnType.token.lexeme, node.signature.token)));
             PushScope();
 
             VerifyFunctionSignature(node.signature, true, parameterTypes);
@@ -201,13 +179,13 @@ namespace Blu {
         }
 
         void VisitBinding(BindingNode node) {
-            TypeSymbol? type = null;
+            TypeSymbol type = null;
 
             if (node.type == null) {
                 type = InferTypeOfNode(node.expression);
             } else {
-                type = (TypeSymbol?)FindSymbol(node.type?.token?.lexeme);
-                TypeSymbol? errorType = ExpectTypeOfNode(node.expression, type);
+                type = (TypeSymbol)FindSymbol(node.type.token.lexeme);
+                TypeSymbol errorType = ExpectTypeOfNode(node.expression, type);
 
                 if (errorType != null) {
                     SoftError($"Identifier '{node.token.lexeme}' expected type '{type}' but received '{errorType}'", node.token);
@@ -216,17 +194,17 @@ namespace Blu {
 
             DeclareSymbol(new BindingSymbol(node.token.lexeme, node.token, false, GetBindingType(node), type));
             
-            node.SetTypeName(type?.identifier);
+            node.SetTypeName(type.identifier);
         }
 
         void VisitConstBinding(ConstBindingNode node) {
-            TypeSymbol? type = null;
+            TypeSymbol type = null;
 
             if (node.type == null) {
                 type = InferTypeOfNode(node.expression);
             } else {
-                type = (TypeSymbol?)FindSymbol(node.type?.token?.lexeme);
-                TypeSymbol? errorType = ExpectTypeOfNode(node.expression, type);
+                type = (TypeSymbol)FindSymbol(node.type.token.lexeme);
+                TypeSymbol errorType = ExpectTypeOfNode(node.expression, type);
 
                 if (errorType != null) {
                     SoftError($"Identifier '{node.token.lexeme}' expected type '{type}' but received '{errorType}'", node.token);
@@ -238,7 +216,7 @@ namespace Blu {
 
             DeclareSymbol(new BindingSymbol(node.token.lexeme, node.token, node.isPublic, BindingType.Constant, type));
 
-            node.SetTypeName(type?.identifier);
+            node.SetTypeName(type.identifier);
         }
 
         void VisitIdentifier(IdentifierNode node) {
@@ -249,23 +227,23 @@ namespace Blu {
         }
 
         void VisitTrait(TraitNode node) {
-            var trait = (TraitSymbol?)FindSymbol(node.token.lexeme);
+            var trait = (TraitSymbol)FindSymbol(node.token.lexeme);
             if (trait != null) {
-                SoftError($"Trait '{node.token.lexeme}' already exists at {trait.token?.line}:{trait.token?.column} already exists", node.token);
+                SoftError($"Trait '{node.token.lexeme}' already exists at {trait.token.line}:{trait.token.column} already exists", node.token);
             }
 
             var functions = new List<FunctionSymbol>();
             var functionNames = new HashSet<string>();
 
             foreach (var sig in node.signatures) {
-                if (functionNames.Contains(sig.token?.lexeme)) {
+                if (functionNames.Contains(sig.token.lexeme)) {
                     SoftError($"Trait '{node.token}' has duplicate function named '{sig.token.lexeme}'", sig.token);
                 }
 
                 List<TypeSymbol> paramTypes = new List<TypeSymbol>();
                 VerifyFunctionSignature(sig, false, paramTypes);
 
-                functions.Add(new FunctionSymbol(sig.token?.lexeme, sig.token, true, paramTypes, ErrorNoType(sig.returnType.token.lexeme, sig.token)));
+                functions.Add(new FunctionSymbol(sig.token.lexeme, sig.token, true, paramTypes, ErrorNoType(sig.returnType.token.lexeme, sig.token)));
 
                 functionNames.Add(sig.token.lexeme);
             }
@@ -275,24 +253,28 @@ namespace Blu {
 
         void VisitCast(CastNode node) {
             Visit(node.expression);
-            var type = ErrorNoType(node.token?.lexeme, node.token);
-            node.SetTypeName(type?.identifier);
+            var type = ErrorNoType(node.token.lexeme, node.token);
+            node.SetTypeName(type.identifier);
         }
 
-        void VerifyFunctionSignature(FunctionSignatureNode node, bool declareParams, List<TypeSymbol>? paramTypes) {
+        void VisitReturn(Return node) {
+            Utils.RunNonNull(node.rhs, () => Visit(node.rhs));
+        }
+
+        void VerifyFunctionSignature(FunctionSignatureNode node, bool declareParams, List<TypeSymbol> paramTypes) {
             var fieldNames = new HashSet<string>();
             foreach (var param in node.parameters) {
                 if (fieldNames.Contains(param.token.lexeme)) {
                     SoftError($"Function '{node.token.lexeme}' has duplicate item in parameter list named '{param.token.lexeme}'", param.token);
                 } else {
-                    var type = (TypeSymbol?)ErrorNoType(param?.type?.typeName, param.token);
+                    var type = (TypeSymbol)ErrorNoType(param.type.typeName, param.token);
 
                     if (declareParams) {
                         DeclareSymbol(new BindingSymbol(param.token.lexeme, param.token, false, (param.isMutable) ? BindingType.Var : BindingType.Let, type));
                     }
 
-                    param.SetTypeName(type?.identifier);
-                    paramTypes?.Add(type);
+                    param.SetTypeName(type.identifier);
+                    paramTypes.Add(type);
                 }
 
                 ErrorNoType(param.type.typeName, param.type.token);
@@ -300,30 +282,30 @@ namespace Blu {
             }
 
             ErrorNoType(node.returnType.typeName, node.returnType.token);
-            node.returnType.SetTypeName(((TypeSymbol?)FindSymbol(node.returnType.token.lexeme)).identifier);
+            node.returnType.SetTypeName(((TypeSymbol)FindSymbol(node.returnType.token.lexeme)).identifier);
         }
 
         // Returns the symbol type, that doesn't match the specified type
-        TypeSymbol? CheckNodeHasType(AstNode node, TypeSymbol type) {
+        TypeSymbol CheckNodeHasType(AstNode node, TypeSymbol type) {
             switch (node) {
                 case BinaryOpNode binop: {
-                    TypeSymbol? lhs = GetTypeOfNode(binop.lhs);
-                    TypeSymbol? rhs = GetTypeOfNode(binop.rhs);
+                    TypeSymbol lhs = GetTypeOfNode(binop.lhs);
+                    TypeSymbol rhs = GetTypeOfNode(binop.rhs);
 
-                    if ((bool)!lhs?.IsType(type)) {
+                    if ((bool)!lhs.IsType(type)) {
                         return lhs;
                     }
 
-                    if ((bool)!rhs?.IsType(type)) {
+                    if ((bool)!rhs.IsType(type)) {
                         return rhs;
                     }
                     break;
                 }
 
                 case UnaryOpNode unary: {
-                    TypeSymbol? rhs = GetTypeOfNode(unary.rhs);
+                    TypeSymbol rhs = GetTypeOfNode(unary.rhs);
 
-                    if ((bool)!rhs?.IsType(type)) {
+                    if ((bool)!rhs.IsType(type)) {
                         return rhs;
                     }
                     break;
@@ -340,7 +322,7 @@ namespace Blu {
                 }
 
                 case CastNode cast: {
-                    var expr = new TypeSymbol(cast.token?.lexeme);
+                    var expr = new TypeSymbol(cast.token.lexeme);
                     if (!expr.IsType(type)) {
                         return expr;
                     }
@@ -354,13 +336,13 @@ namespace Blu {
             return null;
         }
 
-        TypeSymbol? ExpectTypeOfNode(AstNode node, TypeSymbol? type) {
+        TypeSymbol ExpectTypeOfNode(AstNode node, TypeSymbol type) {
             return CheckNodeHasType(node, type);
         }
 
         // Returns the type of the inferred node
         TypeSymbol InferTypeOfNode(AstNode node) {
-            TypeSymbol? type = GetTypeOfNode(node);
+            TypeSymbol type = GetTypeOfNode(node);
 
             var errorType = ExpectTypeOfNode(node, type);
             if (errorType != null) {
@@ -371,7 +353,7 @@ namespace Blu {
         }
 
         TypeSymbol GetTypeFromLiteral(LiteralNode node) {
-            return node.token?.kind switch {
+            return node.token.kind switch {
                 TokenKind.Int => new TypeSymbol("int", node.token),
                 TokenKind.Float => new TypeSymbol("float", node.token),
                 TokenKind.True or TokenKind.False => new TypeSymbol("bool", node.token),
@@ -380,21 +362,21 @@ namespace Blu {
             };
         }
 
-        TypeSymbol? GetTypeFromIdentifier(IdentifierNode node) {
-            return FindSymbol(node.token?.lexeme) switch {
+        TypeSymbol GetTypeFromIdentifier(IdentifierNode node) {
+            return FindSymbol(node.token.lexeme) switch {
                 BindingSymbol c => c.type,
                 _ => throw new UnreachableException("TypeFromIdentifier"),
             };
         }
 
-        TypeSymbol? GetTypeOfNode(AstNode node) {
+        TypeSymbol GetTypeOfNode(AstNode node) {
             return node switch {
                 LiteralNode literal => GetTypeFromLiteral(literal),
                 BinaryOpNode binop => GetTypeOfNode(binop.lhs),
                 UnaryOpNode unary => GetTypeOfNode(unary.rhs),
                 IdentifierNode id => GetTypeFromIdentifier(id),
-                BindingNode b => new TypeSymbol(b.type?.typeName, b.type?.token),
-                ConstBindingNode b => new TypeSymbol(b.type?.typeName, b.type?.token),
+                BindingNode b => new TypeSymbol(b.type.typeName, b.type.token),
+                ConstBindingNode b => new TypeSymbol(b.type.typeName, b.type.token),
                 CastNode c => new TypeSymbol(c.token.lexeme),
                 _ => throw new UnreachableException($"Analyser - {node}"),
             };
