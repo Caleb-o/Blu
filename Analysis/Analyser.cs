@@ -15,8 +15,8 @@ sealed class Analyser {
     }
 
     public bool Analyse() {
-        VisitProgram(this.unit.ast);
-        return this.hadError;
+        VisitProgram(unit.ast);
+        return hadError;
     }
 
     void PushScope() {
@@ -24,7 +24,7 @@ sealed class Analyser {
     }
 
     void PopScope() {
-        symbolTable.Remove(symbolTable.Last());
+        symbolTable.RemoveAt(symbolTable.Count - 1);
     }
 
     void SoftError(string message, Token token) {
@@ -33,16 +33,11 @@ sealed class Analyser {
         Console.WriteLine($"Error occured: {message} in {this.unit.fileName} at {token.line}:{token.column}");
     }
 
-    // Note: This error will cause the compilation to stop entirely
-    void Error(string message, Token token) {
-        throw new ParserException(this.unit.fileName, message, (int)token.line, (int)token.column);
-    }
-
     Symbol? FindSymbol(string identifier) {
         for (int i = symbolTable.Count - 1; i >= 0; --i) {
             var table = symbolTable[i];
 
-            for (int j = 0; j < table.Count; j++) {
+            for (int j = table.Count - 1; j >= 0; --j) {
                 if (table[j].identifier == identifier) {
                     return table[j];
                 }
@@ -63,7 +58,10 @@ sealed class Analyser {
             case BindingNode n:         VisitBinding(n); break;
             case IdentifierNode n:      VisitIdentifier(n); break;
             case FunctionCallNode n:    VisitFunctionCall(n); break;
-            case Return n:              VisitReturn(n); break;
+            case ReturnNode n:          VisitReturn(n); break;
+            case PrintNode n:           VisitPrint(n); break;
+            case BinaryOpNode n:        VisitBinaryOp(n); break;
+            case UnaryOpNode n:         Visit(n.rhs); break;
 
             case LiteralNode: break;
             
@@ -90,14 +88,15 @@ sealed class Analyser {
         List<Token> parameters = new();
         HashSet<string> parameterNames = new();
 
+        PushScope();
         foreach (var param in node.parameters) {
             if (!parameterNames.Add(param.token.lexeme)) {
                 SoftError($"Parameter '{param.token.lexeme}' has already been defined", param.token);
             }
             parameters.Add(param.token);
+            DefineSymbol(new BindingSymbol(param.token));
         }
 
-        PushScope();
         VisitBody(node.body, false);
         PopScope();
     }
@@ -125,7 +124,18 @@ sealed class Analyser {
         }
     }
 
-    void VisitReturn(Return node) {
+    void VisitReturn(ReturnNode node) {
         Utils.RunNonNull(node.rhs, (rhs) => Visit((AstNode)rhs));
+    }
+
+    void VisitPrint(PrintNode node) {
+        foreach (var n in node.Arguments) {
+            Visit(n);
+        }
+    }
+
+    void VisitBinaryOp(BinaryOpNode node) {
+        Visit(node.lhs);
+        Visit(node.rhs);
     }
 }

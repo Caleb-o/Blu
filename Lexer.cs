@@ -36,11 +36,11 @@ namespace Blu {
                 '*' => MakeCharToken(TokenKind.Star),
                 '/' => MakeCharToken(TokenKind.Slash),
 
-                '>' => MatchingCharToken(TokenKind.Greater,
-                    (TokenKind.NotEqual, '>'),
-                    (TokenKind.GreaterEq, '=')
+                '>' => MatchingCharToken(TokenKind.Greater, (TokenKind.GreaterEq, '=')),
+                '<' => MatchingCharToken(TokenKind.Less,
+                    (TokenKind.LessEq, '='),
+                    (TokenKind.NotEqual, '>')
                 ),
-                '<' => MatchingCharToken(TokenKind.Less, (TokenKind.LessEq, '=')),
                 '=' => MatchingCharToken(TokenKind.Equal, (TokenKind.EqualEq, '=')),
 
                 ':' => MakeCharToken(TokenKind.Colon),
@@ -161,8 +161,11 @@ namespace Blu {
                 "if" => TokenKind.If,
                 "then" => TokenKind.Then,
                 "else" => TokenKind.Else,
+                "print" => TokenKind.Print,
 
                 "let" => TokenKind.Let,
+                "nil" => TokenKind.Nil,
+                "export" => TokenKind.Export,
 
                 _ => TokenKind.Identifier,
             };

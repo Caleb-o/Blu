@@ -1,4 +1,5 @@
 ﻿using System;
+using Blu.Runtime;
 
 namespace Blu;
 
@@ -12,13 +13,14 @@ sealed class Program {
         try {
             CompilationUnit unit = new Parser(args[0], true).Parse();
             if (!new Analyser(unit).Analyse()) {
-                // Interpret
+                new Interpreter().Run(unit);
             }
 
             Console.WriteLine("Done!");
         } catch (Exception e) when (e is LexerException ||
                                     e is ParserException ||
-                                    e is AnalyserException) {
+                                    e is AnalyserException ||
+                                    e is BluException) {
             Console.WriteLine(e.Message);
         }
     }

@@ -10,11 +10,11 @@ namespace Blu {
         LParen, RParen,
         LSquare, RSquare,
 
-        String, Number, True, False,
+        String, Number, True, False, Nil,
         
         Identifier, Let, Return,
         If, Then, Else, Fun, For, To,
-        Export, // Exports identifiers into an object, which can be imported
+        Export, Print,// Exports identifiers into an object, which can be imported
 
         Error,
         EndOfFile,

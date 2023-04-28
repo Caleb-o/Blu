@@ -28,20 +28,11 @@ namespace Blu {
 
         void Consume(TokenKind kind, string message) {
             if (Kind() == kind) {
-                this.current = this.lexer.Next();
+                current = lexer.Next();
                 return;
             }
 
             Error(message);
-        }
-
-        bool ConsumeIf(TokenKind kind) {
-            if (Kind() == kind) {
-                this.current = this.lexer.Next();
-                return true;
-            }
-
-            return false;
         }
 
         void ConsumeAny() {
@@ -49,36 +40,38 @@ namespace Blu {
         }
         
         // Get current token's kind
-        TokenKind Kind() => this.current.kind;
+        TokenKind Kind() => current.kind;
 
         void TopLevelStatements(BodyNode node) {
-            switch (Kind()) {
-                case TokenKind.Let:
-                    BindingDeclaration(node);
-                    break;
+            while (current.kind != TokenKind.EndOfFile) {
+                switch (Kind()) {
+                    case TokenKind.Let:
+                        BindingDeclaration(node);
+                        break;
+                    
+                    default:
+                        Error($"Unknown start of top-level statement '{Kind()}'");
+                        break;
+                }
 
-                default:
-                    Error($"Unknown start of top-level statement '{Kind()}'");
-                    break;
+                Consume(TokenKind.Semicolon, "Expect ';' after top-level statement");
             }
-
-            Consume(TokenKind.Semicolon, "Expect ';' after top-level statement");
         }
 
         AstNode Primary() {
-            Token current = this.current;
+            Token token = current;
 
             switch (current.kind) {
-                case TokenKind.Number: case TokenKind.String:
+                case TokenKind.Number: case TokenKind.String: case TokenKind.Nil:
                 case TokenKind.True: case TokenKind.False: {
                     ConsumeAny();
-                    return new LiteralNode(current);
+                    return new LiteralNode(token);
                 }
 
                 // Identifier
                 case TokenKind.Identifier:
                     ConsumeAny();
-                    return new IdentifierNode(current);
+                    return new IdentifierNode(token);
 
                 case TokenKind.Fun:
                     return FunctionDefinition();
@@ -103,7 +96,7 @@ namespace Blu {
 
         AstNode Unary() {
             if (Kind() == TokenKind.Minus) {
-                Token op = this.current;
+                Token op = current;
                 ConsumeAny();
                 return new UnaryOpNode(op, Call());
             }
@@ -145,10 +138,13 @@ namespace Blu {
                     BindingDeclaration(body);
                     break;
                 
-                case TokenKind.Return: {
+                case TokenKind.Print:
+                    PrintStatement(body);
+                    break;
+                
+                case TokenKind.Return:
                     ReturnStatement(body);
                     break;
-                }
                 
                 default:
                     Error("Unknown statement found");
@@ -162,8 +158,11 @@ namespace Blu {
             Token token = current;
             ConsumeAny();
 
-            AstNode rhs = Expression();
-            body.statements.Add(new Return(token, rhs));
+            AstNode? rhs = null;
+            if (Kind() != TokenKind.Semicolon) {
+                rhs = Expression();
+            }
+            body.statements.Add(new ReturnNode(token, rhs));
         }
 
         // grammar: (let|var) id = expression
@@ -179,6 +178,26 @@ namespace Blu {
                 Consume(TokenKind.Equal, "Expect '=' after identifier");
                 body.AddNode(new BindingNode(identifier, Expression()));
             }
+        }
+
+        void PrintStatement(BodyNode node) {
+            Token token = current;
+            ConsumeAny();
+
+            List<AstNode> arguments = new();
+
+            Consume(TokenKind.LParen, "Expect '(' after print");
+            if (Kind() != TokenKind.RParen) {
+                arguments.Add(Expression());
+
+                while (Kind() == TokenKind.Comma) {
+                    ConsumeAny();
+                    arguments.Add(Expression());
+                }
+            }
+            Consume(TokenKind.RParen, "Expect ')' after print arguments");
+
+            node.AddNode(new PrintNode(token, arguments.ToArray()));
         }
 
         List<IdentifierNode> GetParameterList() {
@@ -205,7 +224,7 @@ namespace Blu {
             return parameterList;
         }
 
-        FunctionNode FunctionDefinitionFP(Token identifier) {
+        AstNode FunctionDefinitionFP(Token identifier) {
             List<IdentifierNode> parameters = new();
 
             var collect = () => {
@@ -220,7 +239,7 @@ namespace Blu {
 
             Consume(TokenKind.Equal, "Expect '=' after parameter list");
 
-            return new FunctionNode(identifier, parameters, Block());
+            return new BindingNode(identifier, new FunctionNode(identifier, parameters.ToArray(), Block()));
         }
 
         FunctionNode FunctionDefinition() {
@@ -228,7 +247,7 @@ namespace Blu {
             ConsumeAny();
             var parameters = GetParameterList();
 
-            return new FunctionNode(token, parameters, Block());
+            return new FunctionNode(token, parameters.ToArray(), Block());
         }
 
         AstNode FunctionCall(AstNode lhs) {
@@ -245,8 +264,8 @@ namespace Blu {
                 }
             }
 
-            Consume(TokenKind.LParen, "Expect ')' after argument list");
-            return new FunctionCallNode(lhs.token, lhs, arguments);
+            Consume(TokenKind.RParen, "Expect ')' after argument list");
+            return new FunctionCallNode(lhs.token, lhs, arguments.ToArray());
         }
 
         BodyNode Block() {
