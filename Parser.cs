@@ -147,7 +147,7 @@ namespace Blu {
                     break;
                 
                 default:
-                    Error("Unknown statement found");
+                    body.AddNode(Expression());
                     break;
             }
 
@@ -186,8 +186,7 @@ namespace Blu {
 
             List<AstNode> arguments = new();
 
-            Consume(TokenKind.LParen, "Expect '(' after print");
-            if (Kind() != TokenKind.RParen) {
+            if (Kind() != TokenKind.Semicolon) {
                 arguments.Add(Expression());
 
                 while (Kind() == TokenKind.Comma) {
@@ -195,13 +194,16 @@ namespace Blu {
                     arguments.Add(Expression());
                 }
             }
-            Consume(TokenKind.RParen, "Expect ')' after print arguments");
 
             node.AddNode(new PrintNode(token, arguments.ToArray()));
         }
 
         List<IdentifierNode> GetParameterList() {
             List<IdentifierNode> parameterList = new();
+
+            if (current.kind != TokenKind.LParen) {
+                return parameterList;
+            }
 
             Consume(TokenKind.LParen, "Expected '(' after function");
 

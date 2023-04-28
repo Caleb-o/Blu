@@ -76,7 +76,7 @@ sealed class Interpreter {
                 DeclareBinding(func.Value.parameters[i].token.lexeme, Visit(node.arguments[i]));
             }
 
-            var value = Visit(func.Value.body);
+            Value value = Visit(func.Value.body);
             PopScope();
 
             return value;
