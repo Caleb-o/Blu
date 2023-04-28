@@ -48,7 +48,8 @@ namespace Blu {
                 '.' => MakeCharToken(TokenKind.Dot),
                 ',' => MakeCharToken(TokenKind.Comma),
 
-                '"' => String(),
+                '"' => String('"'),
+                '\'' => String('\''),
 
                 '(' => MakeCharToken(TokenKind.LParen),
                 ')' => MakeCharToken(TokenKind.RParen),
@@ -105,15 +106,14 @@ namespace Blu {
             return MakeToken(FindKeyword(lexeme), column, lexeme);
         }
 
-        Token String() {
+        Token String(char end) {
             Advance();
 
-            int ip = this.ip;
-            int column = this.column;
+            int startColumn = column;
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new();
 
-            while (!IsAtEnd() && Peek() != '"') {
+            while (!IsAtEnd() && Peek() != end) {
                 if (Peek() == '\\') {
                     Advance();
                     sb.Append(Peek());
@@ -125,7 +125,7 @@ namespace Blu {
             }
             Advance();
 
-            return MakeToken(TokenKind.String, column, sb.ToString());
+            return MakeToken(TokenKind.String, startColumn, sb.ToString());
         }
 
         Token Digit() {
