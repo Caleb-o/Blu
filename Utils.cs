@@ -68,8 +68,8 @@ namespace Blu {
             throw new BluException(message);
         }
 
-        public static void RunNonNull(object item, Action fn) {
-            if (item != null) fn();
+        public static void RunNonNull(object item, Action<object> fn) {
+            if (item != null) fn(item);
         }
 
         public static (bool, string) CheckInEnvPath(string fileName)

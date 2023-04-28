@@ -36,12 +36,13 @@ namespace Blu {
                 '*' => MakeCharToken(TokenKind.Star),
                 '/' => MakeCharToken(TokenKind.Slash),
 
-                '>' => MatchingCharToken(TokenKind.Greater, (TokenKind.GreaterEq, '=')),
+                '>' => MatchingCharToken(TokenKind.Greater,
+                    (TokenKind.NotEqual, '>'),
+                    (TokenKind.GreaterEq, '=')
+                ),
                 '<' => MatchingCharToken(TokenKind.Less, (TokenKind.LessEq, '=')),
                 '=' => MatchingCharToken(TokenKind.Equal, (TokenKind.EqualEq, '=')),
-                '!' => MatchingCharToken(TokenKind.Bang, (TokenKind.BangEq, '=')),
 
-                '&' => MakeCharToken(TokenKind.Ampersand),
                 ':' => MakeCharToken(TokenKind.Colon),
                 ';' => MakeCharToken(TokenKind.Semicolon),
                 '.' => MakeCharToken(TokenKind.Dot),
@@ -70,37 +71,25 @@ namespace Blu {
 
         Token MakeCharToken(TokenKind kind) {
             Advance();
-            return new CharToken(kind, this.line, this.column - 1);
+            return new Token(kind, this.line, this.column - 1, null);
         }
 
         Token MakeErrorToken(string message) {
             return new Token(TokenKind.Error, this.line, this.column, message);
         }
 
-        Token MatchingCharToken(TokenKind single, (TokenKind, char) matches) {
-            char next = PeekNext();
-
-            if (next == matches.Item2) {
-                Advance(); Advance();
-                return new CharToken(matches.Item1, this.line, this.column - 2);
-            }
-
-            Advance();
-            return new CharToken(single, this.line, this.column - 1);
-        }
-
-        Token MatchingCharToken(TokenKind single, (TokenKind, char)[] matches) {
+        Token MatchingCharToken(TokenKind single, params (TokenKind, char)[] matches) {
             char next = PeekNext();
 
             foreach (var m in matches) {
                 if (next == m.Item2) {
                     Advance(); Advance();
-                    return new CharToken(m.Item1, this.line, this.column - 2);
+                    return new Token(m.Item1, this.line, this.column - 2, null);
                 }
             }
 
             Advance();
-            return new CharToken(single, this.line, this.column - 1);
+            return new Token(single, this.line, this.column - 1, null);
         }
 
         Token Identifier() {
@@ -142,47 +131,39 @@ namespace Blu {
         Token Digit() {
             int ip = this.ip;
             int column = this.column;
-            TokenKind kind = TokenKind.Int;
+            bool isFloat = false;
 
             while (!IsAtEnd() && char.IsDigit(Peek())) {
                 Advance();
 
                 // Check if float
                 if (Peek() == '.') {
-                    if (kind == TokenKind.Float) {
+                    if (isFloat) {
                         throw new LexerException("Float already contains a decimal", this.line, this.column);
                     }
                     
                     Advance();
-                    kind = TokenKind.Float;
+                    isFloat = true;
                 }
             }
 
-            return MakeToken(kind, column, this.source[ip..this.ip]);
+            return MakeToken(TokenKind.Number, column, this.source[ip..this.ip]);
         }
 
         TokenKind FindKeyword(ReadOnlySpan<char> lexeme) {
             return lexeme switch {
-                "pub" => TokenKind.Pub,
-                "struct" => TokenKind.Struct,
-                "enum" => TokenKind.Enum,
-                "trait" => TokenKind.Trait,
-                "fn" => TokenKind.Fn,
+                "fun" => TokenKind.Fun,
                 "return" => TokenKind.Return,
 
+                "for" => TokenKind.For,
+                "to" => TokenKind.To,
+
                 "if" => TokenKind.If,
+                "then" => TokenKind.Then,
                 "else" => TokenKind.Else,
-                "while" => TokenKind.While,
 
-                "ref" => TokenKind.Ref,
-                "var" => TokenKind.Var,
                 "let" => TokenKind.Let,
-                "const" => TokenKind.Const,
 
-                "test" => TokenKind.Test,
-                "csharp" => TokenKind.CSharp,
-                "as" => TokenKind.As,
-                
                 _ => TokenKind.Identifier,
             };
         }

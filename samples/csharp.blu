@@ -1,3 +1,0 @@
-fn main() void {
-    csharp "var a = 10;";
-}

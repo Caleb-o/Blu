@@ -1,5 +1,0 @@
-pub enum Thing {
-    A,
-    B(int, int),
-    C
-}
