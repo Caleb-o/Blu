@@ -107,6 +107,7 @@ sealed class Interpreter {
             EqualityNode n => VisitEquality(n),
             ComparisonNode n => VisitComparison(n),
             PrependNode n => VisitPrepend(n),
+            PipeNode n => VisitPipe(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -401,6 +402,8 @@ sealed class Interpreter {
 
         throw new BluException("Cannot prepend to non-list");
     }
+
+    Value VisitPipe(PipeNode node) => Visit(node.Rhs);
 
     Value VisitBinaryOp(BinaryOpNode node) {
         Value lhs = Visit(node.lhs);

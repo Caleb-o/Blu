@@ -38,6 +38,8 @@ namespace Blu {
 
                 '@' => MakeCharToken(TokenKind.At),
 
+                '|' => MatchingCharToken(TokenKind.Error, (TokenKind.Pipe, '>')),
+
                 '>' => MatchingCharToken(TokenKind.Greater, (TokenKind.GreaterEq, '=')),
                 '<' => MatchingCharToken(TokenKind.Less,
                     (TokenKind.LessEq, '='),

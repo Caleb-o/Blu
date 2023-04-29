@@ -114,7 +114,7 @@ namespace Blu {
         AstNode Call() {
             AstNode node = Primary();
 
-            while (current.kind.In(TokenKind.LParen, TokenKind.LSquare, TokenKind.Dot)) {
+            while (current.kind.In(TokenKind.LParen, TokenKind.LSquare, TokenKind.Dot, TokenKind.Pipe)) {
                 switch (current.kind) {
                     case TokenKind.LParen:
                         node = FunctionCall(node);
@@ -126,6 +126,10 @@ namespace Blu {
 
                     case TokenKind.Dot:
                         node = PropertyGet(node);
+                        break;
+                    
+                    case TokenKind.Pipe:
+                        node = Pipe(node);
                         break;
                 }
             }
@@ -492,6 +496,12 @@ namespace Blu {
             }
 
             return new ImportNode(token, fromBase, path.ToArray());
+        }
+
+        PipeNode Pipe(AstNode node) {
+            Token token = current;
+            ConsumeAny();
+            return new PipeNode(token, node, Expression());
         }
 
         AstNode FunctionCall(AstNode lhs) {

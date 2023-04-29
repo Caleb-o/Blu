@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Blu;
 
@@ -76,6 +75,7 @@ sealed class Analyser {
             case EqualityNode n:        VisitEquality(n); break;
             case ComparisonNode n:      VisitComparison(n); break;
             case PrependNode n:         VisitPrepend(n); break;
+            case PipeNode n:            VisitPipe(n); break;
 
             // Ignore
             case ImportNode:
@@ -261,5 +261,27 @@ sealed class Analyser {
     void VisitPrepend(PrependNode node) {
         Visit(node.Lhs);
         Visit(node.Rhs);
+    }
+
+    void VisitPipe(PipeNode node) {
+        Visit(node.Lhs);
+
+        if (node.Rhs is FunctionCallNode func) {
+            AstNode[] newArgs = new AstNode[func.arguments.Length + 1];
+            Array.Copy(func.arguments, newArgs, func.arguments.Length);
+            newArgs[newArgs.Length - 1] = node.Lhs;
+
+            func.arguments = newArgs;
+            VisitFunctionCall(func);
+        } else if (node.Rhs is PipeNode pipe && pipe.Lhs is FunctionCallNode func2) {
+            AstNode[] newArgs = new AstNode[func2.arguments.Length + 1];
+            Array.Copy(func2.arguments, newArgs, func2.arguments.Length);
+            newArgs[newArgs.Length - 1] = node.Lhs;
+
+            func2.arguments = newArgs;
+            Visit(node.Rhs);
+        } else {
+            SoftError("Right-hand side of a pipe must be a function call", node.Rhs.token);
+        }
     }
 }
