@@ -93,6 +93,9 @@ namespace Blu {
                 case TokenKind.LSquare:
                     return ListLiteral();
 
+                case TokenKind.LCurly:
+                    return RecordLiteral();
+
                 default:
                     Error($"Unknown token found in expression {current.lexeme}");
                     break;
@@ -104,7 +107,7 @@ namespace Blu {
         AstNode Call() {
             AstNode node = Primary();
 
-            while (current.kind.In(TokenKind.LParen, TokenKind.LSquare)) {
+            while (current.kind.In(TokenKind.LParen, TokenKind.LSquare, TokenKind.Dot)) {
                 switch (current.kind) {
                     case TokenKind.LParen:
                         node = FunctionCall(node);
@@ -112,6 +115,10 @@ namespace Blu {
                     
                     case TokenKind.LSquare:
                         node = IndexGet(node);
+                        break;
+
+                    case TokenKind.Dot:
+                        node = PropertyGet(node);
                         break;
                 }
             }
@@ -407,6 +414,32 @@ namespace Blu {
             return new ListLiteralNode(token, expressions.ToArray());
         }
 
+        RecordLiteralNode RecordLiteral() {
+            Token token = current;
+            ConsumeAny();
+
+            List<(IdentifierNode, AstNode)> values = new();
+
+            if (current.kind == TokenKind.Identifier) {
+                var collect = () => {
+                    IdentifierNode identifier = new(current);
+                    ConsumeAny();
+                    Consume(TokenKind.Colon, "Expect ':' after identifier in record");
+                    return (identifier, Expression());
+                };
+
+                values.Add(collect());
+
+                while (current.kind == TokenKind.Comma) {
+                    ConsumeAny();
+                    values.Add(collect());
+                }
+            }
+            Consume(TokenKind.RCurly, "Expect '}' after record literal");
+
+            return new RecordLiteralNode(token, values.ToArray());
+        }
+
         AstNode FunctionCall(AstNode lhs) {
             ConsumeAny();
 
@@ -432,6 +465,16 @@ namespace Blu {
             AstNode index = Expression();
             Consume(TokenKind.RSquare, "Expect ']' after index");
             return new IndexGetNode(token, lhs, index);
+        }
+
+        AstNode PropertyGet(AstNode lhs) {
+            Token token = current;
+            ConsumeAny();
+
+            Token identifier = current;
+            Consume(TokenKind.Identifier, "Expect identifier after '.'");
+            
+            return new PropertyGetNode(token, lhs, new IdentifierNode(identifier));
         }
 
         BodyNode Block() {

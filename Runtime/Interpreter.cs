@@ -78,7 +78,9 @@ sealed class Interpreter {
             BinaryOpNode n => VisitBinaryOp(n),
             LiteralNode n => VisitLiteral(n),
             ListLiteralNode n => VisitListLiteral(n),
+            RecordLiteralNode n => VisitRecordLiteral(n),
             IndexGetNode n => VisitIndexGet(n),
+            PropertyGetNode n => VisitPropertyGet(n),
             LenNode n => VisitLen(n),
             ForLoopNode n => VisitForLoop(n),
             IfNode n => VisitIf(n),
@@ -177,6 +179,15 @@ sealed class Interpreter {
         return new ListValue(values);
     }
 
+    Value VisitRecordLiteral(RecordLiteralNode node) {
+        Dictionary<string, Value> values = new(node.Values.Length);
+
+        foreach (var (key, item) in node.Values) {
+            values[key.token.lexeme] = Visit(item);
+        }
+        return new RecordValue(values);
+    }
+
     Value VisitIndexGet(IndexGetNode node) {
         Value lhs = Visit(node.Lhs);
         Value index = Visit(node.Index);
@@ -190,6 +201,20 @@ sealed class Interpreter {
         }
 
         throw new BluException("Could not index non-list or use non-number index");
+    }
+
+    Value VisitPropertyGet(PropertyGetNode node) {
+        Value lhs = Visit(node.Lhs);
+
+        if (lhs is RecordValue record) {
+            string property = node.Rhs.token.lexeme;
+            if (record.Properties.TryGetValue(property, out var value)) {
+                return value;
+            }
+            throw new BluException($"Record does not contain property '{property}'");
+        }
+
+        throw new BluException("Could not access non-record");
     }
 
     Value VisitLen(LenNode node) {

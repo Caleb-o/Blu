@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Collections.Generic;
 
 namespace Blu.Runtime;
 
@@ -174,4 +175,41 @@ sealed class ListValue : Value {
     public BoolValue GreaterEq(Value rhs) => new(Values.Length >= ((ListValue)rhs).Values.Length);
     public BoolValue Equal(Value rhs) => new(Values == ((ListValue)rhs).Values);
     public BoolValue NotEqual(Value rhs) => new(Values != ((ListValue)rhs).Values);
+}
+
+sealed class RecordValue : Value {
+    public readonly IReadOnlyDictionary<string, Value> Properties;
+
+    public RecordValue(Dictionary<string, Value> properties) {
+        this.Properties = properties;
+    }
+
+    public override string ToString() {
+        StringBuilder sb = new();
+
+        sb.Append('{');
+        int i = 0;
+        foreach (var item in Properties) {
+            sb.Append($"{item.Key}: {item.Value}");
+
+            if (i < Properties.Count - 1) {
+                sb.Append(", ");
+            }
+        }
+        sb.Append('}');
+
+        return sb.ToString();
+    }
+
+    public Value Add(Value rhs) => throw new BluException("Cannot use operations on records");
+    public Value Sub(Value rhs) => throw new BluException("Cannot use operations on records");
+    public Value Div(Value rhs) => throw new BluException("Cannot use operations on records");
+    public Value Mul(Value rhs) => throw new BluException("Cannot use operations on records");
+
+    public BoolValue Less(Value rhs) => new(Properties.Count < ((RecordValue)rhs).Properties.Count);
+    public BoolValue LessEq(Value rhs) => new(Properties.Count <= ((RecordValue)rhs).Properties.Count);
+    public BoolValue Greater(Value rhs) => new(Properties.Count > ((RecordValue)rhs).Properties.Count);
+    public BoolValue GreaterEq(Value rhs) => new(Properties.Count >= ((RecordValue)rhs).Properties.Count);
+    public BoolValue Equal(Value rhs) => new(Properties == ((RecordValue)rhs).Properties);
+    public BoolValue NotEqual(Value rhs) => new(Properties != ((RecordValue)rhs).Properties);
 }

@@ -63,7 +63,9 @@ sealed class Analyser {
             case BinaryOpNode n:        VisitBinaryOp(n); break;
             case UnaryOpNode n:         Visit(n.rhs); break;
             case ListLiteralNode n:     VisitListLiteral(n); break;
+            case RecordLiteralNode n:   VisitRecordLiteral(n); break;
             case IndexGetNode n:        VisitIndexGet(n); break;
+            case PropertyGetNode n:     VisitPropertyGet(n); break;
             case LenNode n:             Visit(n.Expression); break;
             case ForLoopNode n:         VisitForLoop(n); break;
             case IfNode n:              VisitIf(n); break;
@@ -173,10 +175,23 @@ sealed class Analyser {
         }
     }
 
+    void VisitRecordLiteral(RecordLiteralNode node) {
+        HashSet<string> properties = new();
+
+        foreach (var (key, value) in node.Values) {
+            if (!properties.Add(key.token.lexeme)) {
+                SoftError($"Record literal already contains a field '{key.token.lexeme}'", key.token);
+            }
+            Visit(value);
+        }
+    }
+
     void VisitIndexGet(IndexGetNode node) {
         Visit(node.Lhs);
         Visit(node.Index);
     }
+
+    void VisitPropertyGet(PropertyGetNode node) => Visit(node.Lhs);
 
     void VisitForLoop(ForLoopNode node) {
         Visit(node.Start);
