@@ -87,6 +87,7 @@ sealed class Interpreter {
             AndNode n => VisitAnd(n),
             EqualityNode n => VisitEquality(n),
             ComparisonNode n => VisitComparison(n),
+            PrependNode n => VisitPrepend(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -300,6 +301,17 @@ sealed class Interpreter {
             TokenKind.GreaterEq => lhs.GreaterEq(rhs),
             _ => throw new BluException("Invalid comparison operator"),
         };
+    }
+
+    Value VisitPrepend(PrependNode node) {
+        Value lhs = Visit(node.Lhs);
+        Value rhs = Visit(node.Rhs);
+
+        if (rhs is ListValue list) {
+            return list.Prepend(lhs);
+        }
+
+        throw new BluException("Cannot prepend to non-list");
     }
 
     Value VisitBinaryOp(BinaryOpNode node) {

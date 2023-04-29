@@ -36,6 +36,8 @@ namespace Blu {
                 '*' => MakeCharToken(TokenKind.Star),
                 '/' => MakeCharToken(TokenKind.Slash),
 
+                '@' => MakeCharToken(TokenKind.At),
+
                 '>' => MatchingCharToken(TokenKind.Greater, (TokenKind.GreaterEq, '=')),
                 '<' => MatchingCharToken(TokenKind.Less,
                     (TokenKind.LessEq, '='),
@@ -178,28 +180,24 @@ namespace Blu {
             };
         }
 
-        bool IsAtEnd() {
-            return this.ip >= this.source.Length;
-        }
+        bool IsAtEnd() => ip >= source.Length;
 
-        char Peek() {
-            return this.source[this.ip];
-        }
+        char Peek() => source[ip];
 
         char PeekNext() {
-            if (this.ip + 1 >= this.source.Length) return '\0';
-            return this.source[this.ip + 1];
+            if (ip + 1 >= source.Length) return '\0';
+            return source[ip + 1];
         }
 
         void Advance() {
-            this.ip++;
-            this.column++;
+            ip++;
+            column++;
         }
 
         void AdvanceLine() {
-            this.ip++;
-            this.line++;
-            this.column = 1;
+            ip++;
+            line++;
+            column = 1;
         }
 
         void SkipWhitespace() {

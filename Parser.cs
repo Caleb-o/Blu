@@ -129,13 +129,25 @@ namespace Blu {
             return Call();
         }
 
-        AstNode Factor() {
+        AstNode Prepend() {
             AstNode node = Unary();
+
+            if (current.kind == TokenKind.At) {
+                Token token = current;
+                ConsumeAny();
+                return new PrependNode(token, node, Expression());
+            }
+
+            return node;
+        }
+
+        AstNode Factor() {
+            AstNode node = Prepend();
 
             while (current.kind.In(TokenKind.Star, TokenKind.Slash)) {
                 Token op = current;
                 ConsumeAny();
-                node = new BinaryOpNode(op, node, Unary());
+                node = new BinaryOpNode(op, node, Prepend());
             }
 
             return node;

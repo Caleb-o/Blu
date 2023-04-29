@@ -72,6 +72,7 @@ sealed class Analyser {
             case AndNode n:             VisitAnd(n); break;
             case EqualityNode n:        VisitEquality(n); break;
             case ComparisonNode n:      VisitComparison(n); break;
+            case PrependNode n:         VisitPrepend(n); break;
 
             case LiteralNode: break;
             
@@ -198,6 +199,11 @@ sealed class Analyser {
     }
 
     void VisitComparison(ComparisonNode node) {
+        Visit(node.Lhs);
+        Visit(node.Rhs);
+    }
+
+    void VisitPrepend(PrependNode node) {
         Visit(node.Lhs);
         Visit(node.Rhs);
     }

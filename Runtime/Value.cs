@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Text;
 
 namespace Blu.Runtime;
 
@@ -133,7 +133,28 @@ sealed class ListValue : Value {
         Values = values;
     }
 
-    public override string ToString() => "list";
+    public override string ToString() {
+        StringBuilder sb = new();
+
+        sb.Append('[');
+        for (int i = 0; i < Values.Length; ++i) {
+            sb.Append(Values[i]);
+
+            if (i < Values.Length - 1) {
+                sb.Append(", ");
+            }
+        }
+        sb.Append(']');
+
+        return sb.ToString();
+    }
+
+    public Value Prepend(Value lhs) {
+        Value[] values = new Value[Values.Length + 1];
+        Array.Copy(Values, values, Values.Length);
+        values[Values.Length] = lhs;
+        return new ListValue(values);
+    }
 
     public Value Add(Value rhs) { 
         Value[] values = new Value[Values.Length + ((ListValue)rhs).Values.Length];
