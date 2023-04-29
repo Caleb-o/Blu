@@ -105,7 +105,7 @@ sealed class Analyser {
                 SoftError($"Parameter '{param.token.lexeme}' has already been defined", param.token);
             }
             parameters.Add(param.token);
-            DefineSymbol(new BindingSymbol(param.token, param.token.lexeme));
+            DefineSymbol(new BindingSymbol(param.token, param.token.lexeme, false));
         }
 
         Visit(node.body);
@@ -113,8 +113,25 @@ sealed class Analyser {
     }
 
     void VisitBinding(BindingNode node) {
-        DefineSymbol(new BindingSymbol(node.token, node.token.lexeme));
-        Visit(node.expression);
+        switch (node.Kind) {
+            case BindingKind.None: {
+                Visit(node.expression);
+                DefineSymbol(new BindingSymbol(node.token, node.token.lexeme, false));
+                break;
+            }
+
+            case BindingKind.Mutable: {
+                Visit(node.expression);
+                DefineSymbol(new BindingSymbol(node.token, node.token.lexeme, true));
+                break;
+            }
+
+            case BindingKind.Recursive: {
+                DefineSymbol(new BindingSymbol(node.token, node.token.lexeme, false));
+                Visit(node.expression);
+                break;
+            }
+        }
     }
 
     void VisitIdentifier(IdentifierNode node) {
@@ -165,7 +182,7 @@ sealed class Analyser {
         Visit(node.Start);
         Visit(node.To);
 
-        DefineSymbol(new BindingSymbol(null, "idx"));
+        DefineSymbol(new BindingSymbol(null, "idx", false));
         Visit(node.Body);
     }
 
@@ -181,6 +198,13 @@ sealed class Analyser {
     void VisitAssign(AssignNode node) {
         Visit(node.Lhs);
         Visit(node.Expression);
+
+        if (node.Lhs is IdentifierNode id) {
+            BindingSymbol sym = (BindingSymbol)FindSymbol(id.token.lexeme);
+            if (!sym.Mutable) {
+                SoftError($"Binding '{id.token.lexeme}' is not mutable", node.token);
+            }
+        }
     }
 
     void VisitOr(OrNode node) {

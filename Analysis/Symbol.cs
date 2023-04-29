@@ -15,6 +15,9 @@ namespace Blu {
     }
 
     sealed class BindingSymbol : Symbol {
-        public BindingSymbol(Token token, string identifier) : base(identifier, token) {}
+        public readonly bool Mutable;
+        public BindingSymbol(Token token, string identifier, bool mutable) : base(identifier, token) {
+            this.Mutable = mutable;
+        }
     }
 }

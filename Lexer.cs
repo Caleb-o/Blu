@@ -157,6 +157,8 @@ namespace Blu {
             return lexeme switch {
                 "fun" => TokenKind.Fun,
                 "return" => TokenKind.Return,
+                "mut" => TokenKind.Mutable,
+                "rec" => TokenKind.Rec,
                 
                 "or" => TokenKind.Or,
                 "and" => TokenKind.And,

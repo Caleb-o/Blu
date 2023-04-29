@@ -36,7 +36,7 @@ namespace Blu {
         }
 
         void ConsumeAny() {
-            this.current = this.lexer.Next();
+            current = lexer.Next();
         }
         
         void TopLevelStatements(BodyNode node) {
@@ -297,14 +297,23 @@ namespace Blu {
         AstNode BindingDeclaration() {
             ConsumeAny();
 
+            BindingKind kind = BindingKind.None;
+            if (current.kind == TokenKind.Mutable) {
+                ConsumeAny();
+                kind = BindingKind.Mutable;
+            } else if (current.kind == TokenKind.Rec) {
+                ConsumeAny();
+                kind = BindingKind.Recursive;
+            }
+
             Token identifier = current;
             Consume(TokenKind.Identifier, "Expect identifier after let");
 
             if (current.kind.In(TokenKind.Identifier, TokenKind.LParen)) {
-                return FunctionDefinitionFP(identifier);
+                return FunctionDefinitionFP(identifier, kind);
             } else {
                 Consume(TokenKind.Equal, "Expect '=' after identifier");
-                return new BindingNode(identifier, Expression());
+                return new BindingNode(identifier, kind, Expression());
             }
         }
 
@@ -352,13 +361,14 @@ namespace Blu {
             return parameterList;
         }
 
-        AstNode FunctionDefinitionFP(Token identifier) {
+        AstNode FunctionDefinitionFP(Token identifier, BindingKind kind) {
             List<IdentifierNode> parameters = GetParameterList();
 
             Consume(TokenKind.Equal, "Expect '=' after parameter list");
 
             return new BindingNode(
                 identifier,
+                kind,
                 new FunctionNode(identifier, parameters.ToArray(), current.kind == TokenKind.LCurly
                     ? Block()
                     : new ReturnNode(identifier, Expression()))
