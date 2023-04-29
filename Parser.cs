@@ -45,6 +45,10 @@ namespace Blu {
                     case TokenKind.Let:
                         node.AddNode(BindingDeclaration());
                         break;
+
+                    case TokenKind.Export:
+                        node.AddNode(ExportDeclaration());
+                        break;
                     
                     default:
                         Error($"Unknown start of top-level statement '{current.kind}'");
@@ -95,6 +99,9 @@ namespace Blu {
 
                 case TokenKind.LCurly:
                     return RecordLiteral();
+
+                case TokenKind.Import:
+                    return Import();
 
                 default:
                     Error($"Unknown token found in expression {current.lexeme}");
@@ -324,6 +331,30 @@ namespace Blu {
             }
         }
 
+        AstNode ExportDeclaration() {
+            Token token = current;
+            ConsumeAny();
+
+            List<IdentifierNode> exports = new();
+
+            if (current.kind == TokenKind.Identifier) {
+                var collect = () => {
+                    Token token = current;
+                    Consume(TokenKind.Identifier, "Expect identifier in export list");
+                    return new IdentifierNode(token);
+                };
+
+                exports.Add(collect());
+
+                while (current.kind == TokenKind.Comma) {
+                    ConsumeAny();
+                    exports.Add(collect());
+                }
+            }
+
+            return new ExportNode(token, exports.ToArray());
+        }
+
         AstNode PrintStatement() {
             Token token = current;
             ConsumeAny();
@@ -438,6 +469,29 @@ namespace Blu {
             Consume(TokenKind.RCurly, "Expect '}' after record literal");
 
             return new RecordLiteralNode(token, values.ToArray());
+        }
+
+        ImportNode Import() {
+            Token token = current;
+            ConsumeAny();
+
+            bool fromBase = false;
+            if (current.kind == TokenKind.At) {
+                ConsumeAny();
+                fromBase = true;
+                Consume(TokenKind.Dot, "Expect '.' after '@' in import");
+            }
+
+            List<IdentifierNode> path = new() { new IdentifierNode(current) };
+            Consume(TokenKind.Identifier, "Expect identifier in import path");
+
+            while (current.kind == TokenKind.Dot) {
+                ConsumeAny();
+                path.Add(new IdentifierNode(current));
+                Consume(TokenKind.Identifier, "Expect identifier in import path");
+            }
+
+            return new ImportNode(token, fromBase, path.ToArray());
         }
 
         AstNode FunctionCall(AstNode lhs) {

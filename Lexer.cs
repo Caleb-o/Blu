@@ -173,6 +173,7 @@ namespace Blu {
 
                 "let" => TokenKind.Let,
                 "nil" => TokenKind.Nil,
+                "import" => TokenKind.Import,
                 "export" => TokenKind.Export,
                 "len" => TokenKind.Len,
 

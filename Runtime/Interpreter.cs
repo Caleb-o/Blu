@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Text;
 using System.Collections.Generic;
 
@@ -6,6 +7,20 @@ namespace Blu.Runtime;
 
 sealed class Interpreter {
     readonly List<Dictionary<string, Value>> bindings = new();
+    readonly CompilationUnit Unit;
+
+    static readonly Dictionary<string, Value> CompiledFiles = new();
+    static string? basePath;
+    string currentPath;
+
+    public Interpreter(CompilationUnit unit) {
+        this.Unit = unit;
+        this.currentPath = Path.GetDirectoryName(unit.fileName);
+
+        if (basePath == null) {
+            basePath = this.currentPath;
+        }
+    }
 
     sealed class ReturnEx : Exception {
         public readonly Value value;
@@ -14,9 +29,9 @@ sealed class Interpreter {
         }
     }
 
-    public void Run(CompilationUnit unit) {
+    public void Run() {
         PushScope();
-        _ = Visit(unit.ast);
+        _ = Visit(Unit.ast);
         
         if (bindings[0].TryGetValue("main", out var main)) {
             if (main is FunctionValue func) {
@@ -68,6 +83,8 @@ sealed class Interpreter {
     Value Visit(AstNode node) {
         return node switch {
             ProgramNode n => VisitProgram(n),
+            ImportNode n => VisitImport(n),
+            ExportNode n => VisitExport(n),
             BodyNode n => VisitBody(n),
             BindingNode n => VisitBinding(n),
             FunctionNode n => VisitFunction(n),
@@ -95,6 +112,52 @@ sealed class Interpreter {
     }
 
     Value VisitProgram(ProgramNode node) => Visit(node.body);
+
+    Value VisitImport(ImportNode node) {
+        string oldPath = currentPath;
+        string newPath = string.Empty;
+
+        int i = 0;
+        foreach (var path in node.Path) {
+            newPath += path.token.lexeme;
+
+            if (i++ < node.Path.Length - 1) {
+                newPath += "/";
+            }
+        }
+
+        newPath = node.FromBase
+            ? $"{basePath}/{newPath}.blu"
+            : $"{currentPath}/{newPath}.blu";
+
+        if (Interpreter.CompiledFiles.TryGetValue(newPath, out var value)) {
+            Console.WriteLine($"Found value at: '{newPath}'");
+            return value;
+        }
+        
+        if (Path.Exists(newPath)) {
+            CompilationUnit unit;
+            currentPath = Path.GetDirectoryName(newPath);
+            unit = Program.CompileAndRun(newPath);
+            currentPath = oldPath;
+
+            value = new RecordValue(unit.exports);
+            Interpreter.CompiledFiles.Add(newPath, value);
+        } else {
+            throw new BluException($"Cannot find file path '{newPath}'");
+        }
+
+        return value;
+    }
+
+    Value VisitExport(ExportNode node) {
+        foreach (var export in node.Identifiers) {
+            string exportName = export.token.lexeme;
+            Unit.exports.Add(exportName, Visit(export));
+        }
+        return NilValue.The;
+    }
+
     Value VisitBody(BodyNode node) {
         Value value = NilValue.The;
         foreach (var n in node.statements) {
@@ -153,7 +216,7 @@ sealed class Interpreter {
     Value VisitBinding(BindingNode node) {
         string binding = node.token.lexeme;
         Value value = Visit(node.expression);
-        DeclareBinding(binding, value);
+        DeclareOrOverwriteBinding(binding, value);
 
         return value;
     }

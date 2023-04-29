@@ -4,6 +4,14 @@ using Blu.Runtime;
 namespace Blu;
 
 sealed class Program {
+    public static CompilationUnit CompileAndRun(string path) {
+        CompilationUnit unit = new Parser(path, true).Parse();
+        if (!new Analyser(unit).Analyse()) {
+            new Interpreter(unit).Run();
+        }
+        return unit;
+    }
+
     public static void Main(string[] args) {
         if (args.Length != 1) {
             Console.WriteLine("Usage: blu script");
@@ -11,10 +19,7 @@ sealed class Program {
         }
 
         try {
-            CompilationUnit unit = new Parser(args[0], true).Parse();
-            if (!new Analyser(unit).Analyse()) {
-                new Interpreter().Run(unit);
-            }
+            CompileAndRun(args[0]);
         } catch (Exception e) when (e is LexerException ||
                                     e is ParserException ||
                                     e is AnalyserException ||

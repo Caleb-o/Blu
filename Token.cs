@@ -14,7 +14,7 @@ namespace Blu {
         
         Identifier, Let, Return, Mutable, Rec,
         If, Then, Else, Fun, For, To,
-        Export, Print, Len,// Exports identifiers into an object, which can be imported
+        Import, Export, Print, Len,// Exports identifiers into an object, which can be imported
 
         Error,
         EndOfFile,

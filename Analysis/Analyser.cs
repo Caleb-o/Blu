@@ -53,6 +53,7 @@ sealed class Analyser {
     void Visit(AstNode node) {
         switch (node) {
             case ProgramNode n:         VisitProgram(n); break;
+            case ExportNode n:          VisitExport(n); break;
             case BodyNode n:            VisitBody(n, true); break;
             case FunctionNode n:        VisitFunction(n); break;
             case BindingNode n:         VisitBinding(n); break;
@@ -76,7 +77,10 @@ sealed class Analyser {
             case ComparisonNode n:      VisitComparison(n); break;
             case PrependNode n:         VisitPrepend(n); break;
 
-            case LiteralNode: break;
+            // Ignore
+            case ImportNode:
+            case LiteralNode:
+                break;
             
             default:
                 throw new UnreachableException($"Analyser - Visit ({node})");
@@ -85,6 +89,22 @@ sealed class Analyser {
 
     void VisitProgram(ProgramNode node) {
         VisitBody(node.body, false);
+    }
+
+    void VisitExport(ExportNode node) {
+        HashSet<string> exported = new();
+
+        foreach (var id in node.Identifiers) {
+            string export = id.token.lexeme;
+
+            if (FindSymbol(export) == null) {
+                SoftError($"Cannot export item '{export}' which does not exist", id.token);
+            }
+            
+            if (!exported.Add(export)) {
+                SoftError($"Item '{export}' has already been exported", id.token);
+            }
+        }
     }
 
     void VisitBody(BodyNode node, bool newScope) {
@@ -144,11 +164,7 @@ sealed class Analyser {
     }
 
     void VisitFunctionCall(FunctionCallNode node) {
-        var id = FindSymbol(node.token.lexeme);
-        if (id == null) {
-            SoftError($"Identifier '{node.token.lexeme}' does not exist", node.token);
-        }
-
+        Visit(node.lhs);
         foreach (var arg in node.arguments) {
             Visit(arg);
         }
