@@ -51,8 +51,10 @@ sealed class Interpreter {
             ReturnNode n => VisitReturn(n),
             PrintNode n => VisitPrint(n),
             IdentifierNode n => VisitIdentifier(n),
-            LiteralNode n => VisitLiteral(n),
             BinaryOpNode n => VisitBinaryOp(n),
+            LiteralNode n => VisitLiteral(n),
+            ListLiteralNode n => VisitListLiteral(n),
+            IndexGetNode n => VisitIndexGet(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -130,6 +132,30 @@ sealed class Interpreter {
             TokenKind.False => new BoolValue(false),
             TokenKind.Nil => NilValue.The,
         };
+    }
+
+    Value VisitListLiteral(ListLiteralNode node) {
+        Value[] values = new Value[node.Expressions.Length];
+        for (int i = 0; i < values.Length; ++i) {
+            values[i] = Visit(node.Expressions[i]);
+        }
+
+        return new ListValue(values);
+    }
+
+    Value VisitIndexGet(IndexGetNode node) {
+        Value lhs = Visit(node.Lhs);
+        Value index = Visit(node.Index);
+
+        if (lhs is ListValue list && index is NumberValue number) {
+            int numIndex = (int)number.Value;
+            if (numIndex < 0 || numIndex >= list.Values.Length) {
+                throw new BluException($"Index '{numIndex}' out of range of '{list.Values.Length}'");
+            }
+            return list.Values[numIndex];
+        }
+
+        throw new BluException("Could not index non-list or use non-number index");
     }
 
     Value VisitBinaryOp(BinaryOpNode node) {

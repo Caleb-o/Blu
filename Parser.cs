@@ -72,6 +72,9 @@ namespace Blu {
 
                 case TokenKind.Fun:
                     return FunctionDefinition();
+                
+                case TokenKind.LSquare:
+                    return ListLiteral();
 
                 default:
                     Error($"Unknown token found in expression {current.lexeme}");
@@ -84,8 +87,16 @@ namespace Blu {
         AstNode Call() {
             AstNode node = Primary();
 
-            while (current.kind == TokenKind.LParen) {
-                node = FunctionCall(node);
+            while (current.kind.In(TokenKind.LParen, TokenKind.LSquare)) {
+                switch (current.kind) {
+                    case TokenKind.LParen:
+                        node = FunctionCall(node);
+                        break;
+                    
+                    case TokenKind.LSquare:
+                        node = IndexGet(node);
+                        break;
+                }
             }
 
             return node;
@@ -254,8 +265,26 @@ namespace Blu {
             return new FunctionNode(token, parameters.ToArray(), Block());
         }
 
+        ListLiteralNode ListLiteral() {
+            Token token = current;
+            ConsumeAny();
+            List<AstNode> expressions = new();
+
+            if (current.kind != TokenKind.RSquare) {
+                expressions.Add(Expression());
+
+                while (current.kind == TokenKind.Comma) {
+                    ConsumeAny();
+                    expressions.Add(Expression());
+                }
+            }
+
+            Consume(TokenKind.RSquare, "Expect ']' after list literal");
+            return new ListLiteralNode(token, expressions.ToArray());
+        }
+
         AstNode FunctionCall(AstNode lhs) {
-            Consume(TokenKind.LParen, "Expect '(' before argument list");
+            ConsumeAny();
 
             List<AstNode> arguments = new();
 
@@ -270,6 +299,15 @@ namespace Blu {
 
             Consume(TokenKind.RParen, "Expect ')' after argument list");
             return new FunctionCallNode(lhs.token, lhs, arguments.ToArray());
+        }
+        
+        AstNode IndexGet(AstNode lhs) {
+            Token token = current;
+            ConsumeAny();
+
+            AstNode index = Expression();
+            Consume(TokenKind.RSquare, "Expect ']' after index");
+            return new IndexGetNode(token, lhs, index);
         }
 
         BodyNode Block() {

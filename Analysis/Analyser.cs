@@ -62,6 +62,8 @@ sealed class Analyser {
             case PrintNode n:           VisitPrint(n); break;
             case BinaryOpNode n:        VisitBinaryOp(n); break;
             case UnaryOpNode n:         Visit(n.rhs); break;
+            case ListLiteralNode n:     VisitListLiteral(n); break;
+            case IndexGetNode n:        VisitIndexGet(n); break;
 
             case LiteralNode: break;
             
@@ -137,5 +139,16 @@ sealed class Analyser {
     void VisitBinaryOp(BinaryOpNode node) {
         Visit(node.lhs);
         Visit(node.rhs);
+    }
+
+    void VisitListLiteral(ListLiteralNode node) {
+        foreach (var n in node.Expressions) {
+            Visit(n);
+        }
+    }
+
+    void VisitIndexGet(IndexGetNode node) {
+        Visit(node.Lhs);
+        Visit(node.Index);
     }
 }

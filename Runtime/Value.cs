@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Blu.Runtime;
 
 interface Value {
@@ -73,6 +76,27 @@ sealed class FunctionValue : Value {
     public override string ToString() => "func";
 
     public Value Add(Value rhs) { throw new BluException("Cannot use operations on functions"); }
+    public Value Sub(Value rhs) { throw new BluException("Cannot use operations on functions"); }
+    public Value Mul(Value rhs) { throw new BluException("Cannot use operations on functions"); }
+    public Value Div(Value rhs) { throw new BluException("Cannot use operations on functions"); }
+}
+
+sealed class ListValue : Value {
+    public readonly Value[] Values;
+
+    public ListValue(Value[] values) {
+        Values = values;
+    }
+
+    public override string ToString() => "list";
+
+    public Value Add(Value rhs) { 
+        Value[] values = new Value[Values.Length + ((ListValue)rhs).Values.Length];
+        Array.Copy(Values, values, Values.Length);
+        Array.Copy(((ListValue)rhs).Values, 0, values, Values.Length, ((ListValue)rhs).Values.Length);
+
+        return new ListValue(values);
+    }
     public Value Sub(Value rhs) { throw new BluException("Cannot use operations on functions"); }
     public Value Mul(Value rhs) { throw new BluException("Cannot use operations on functions"); }
     public Value Div(Value rhs) { throw new BluException("Cannot use operations on functions"); }
