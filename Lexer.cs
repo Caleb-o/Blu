@@ -39,7 +39,8 @@ namespace Blu {
                 '>' => MatchingCharToken(TokenKind.Greater, (TokenKind.GreaterEq, '=')),
                 '<' => MatchingCharToken(TokenKind.Less,
                     (TokenKind.LessEq, '='),
-                    (TokenKind.NotEqual, '>')
+                    (TokenKind.NotEqual, '>'),
+                    (TokenKind.LeftArrow, '-')
                 ),
                 '=' => MatchingCharToken(TokenKind.Equal, (TokenKind.EqualEq, '=')),
 
@@ -154,6 +155,9 @@ namespace Blu {
             return lexeme switch {
                 "fun" => TokenKind.Fun,
                 "return" => TokenKind.Return,
+                
+                "or" => TokenKind.Or,
+                "and" => TokenKind.And,
 
                 "for" => TokenKind.For,
                 "to" => TokenKind.To,

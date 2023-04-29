@@ -1,10 +1,10 @@
 namespace Blu {
     enum TokenKind {
         Plus, Minus, Star, Slash, Equal,
-        Colon, Comma, Dot, Semicolon, Arrow,
+        Colon, Comma, Dot, Semicolon, LeftArrow, Arrow,
 
         Greater, Less, GreaterEq, LessEq,
-        NotEqual, EqualEq,
+        NotEqual, EqualEq, And, Or,
 
         LCurly, RCurly,
         LParen, RParen,

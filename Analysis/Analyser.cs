@@ -66,6 +66,11 @@ sealed class Analyser {
             case IndexGetNode n:        VisitIndexGet(n); break;
             case LenNode n:             Visit(n.Expression); break;
             case ForLoopNode n:         VisitForLoop(n); break;
+            case IfNode n:              VisitIf(n); break;
+            case OrNode n:              VisitOr(n); break;
+            case AndNode n:             VisitAnd(n); break;
+            case EqualityNode n:        VisitEquality(n); break;
+            case ComparisonNode n:      VisitComparison(n); break;
 
             case LiteralNode: break;
             
@@ -160,5 +165,34 @@ sealed class Analyser {
 
         DefineSymbol(new BindingSymbol(null, "idx"));
         Visit(node.Body);
+    }
+
+    void VisitIf(IfNode node) {
+        Visit(node.Condition);
+        Visit(node.TrueBody);
+
+        if (node.FalseBody != null) {
+            Visit(node.FalseBody);
+        }
+    }
+
+    void VisitOr(OrNode node) {
+        Visit(node.Lhs);
+        Visit(node.Rhs);
+    }
+
+    void VisitAnd(AndNode node) {
+        Visit(node.Lhs);
+        Visit(node.Rhs);
+    }
+
+    void VisitEquality(EqualityNode node) {
+        Visit(node.Lhs);
+        Visit(node.Rhs);
+    }
+
+    void VisitComparison(ComparisonNode node) {
+        Visit(node.Lhs);
+        Visit(node.Rhs);
     }
 }

@@ -20,7 +20,9 @@ sealed class Interpreter {
         
         if (bindings[0].TryGetValue("main", out var main)) {
             if (main is FunctionValue func) {
-                _ = Visit(func.Value.body);
+                try {
+                    _ = Visit(func.Value.body);
+                } catch (ReturnEx) {}
             }
         }
 
@@ -66,16 +68,22 @@ sealed class Interpreter {
             IndexGetNode n => VisitIndexGet(n),
             LenNode n => VisitLen(n),
             ForLoopNode n => VisitForLoop(n),
+            IfNode n => VisitIf(n),
+            OrNode n => VisitOr(n),
+            AndNode n => VisitAnd(n),
+            EqualityNode n => VisitEquality(n),
+            ComparisonNode n => VisitComparison(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
 
     Value VisitProgram(ProgramNode node) => Visit(node.body);
     Value VisitBody(BodyNode node) {
+        Value value = NilValue.The;
         foreach (var n in node.statements) {
-            _ = Visit(n);
+            value = Visit(n);
         }
-        return NilValue.The;
+        return value;
     }
 
     Value VisitFunction(FunctionNode node) => new FunctionValue(node);
@@ -196,6 +204,78 @@ sealed class Interpreter {
         }
 
         throw new BluException("Cannot use non-number values in to range");
+    }
+
+    Value VisitIf(IfNode node) {
+        Value condition = Visit(node.Condition);
+        if (condition is BoolValue b) {
+            AstNode? visited = b.Value
+                ? node.TrueBody
+                : node.FalseBody ?? null;
+
+            if (visited != null) {
+                return visited is BodyNode body
+                    ? VisitBody(body)
+                    : Visit(visited);
+            }
+            return NilValue.The;
+        }
+
+        throw new BluException("Cannot operate if on a non-boolean value");
+    }
+
+    Value VisitOr(OrNode node) {
+        Value lhs = Visit(node.Lhs);
+
+        if (lhs is BoolValue l) {
+            if (l.Value) { return l; }
+
+            Value rhs = Visit(node.Rhs);
+            if (rhs is BoolValue r) {
+                if (l.Value) { return l; }
+            } else {
+                throw new BluException("Can only use or on to booleans");
+            }
+
+            return BoolValue.False;
+        }
+
+        throw new BluException("Can only use or on to booleans");
+    }
+
+    Value VisitAnd(AndNode node) {
+        Value lhs = Visit(node.Lhs);
+        Value rhs = Visit(node.Rhs);
+
+        if (lhs is BoolValue l && rhs is BoolValue r) {
+            return new BoolValue(l.Value && r.Value);
+        }
+
+        throw new BluException("Can only use and on to booleans");
+    }
+
+    Value VisitEquality(EqualityNode node) {
+        Value lhs = Visit(node.Lhs);
+        Value rhs = Visit(node.Rhs);
+
+        return node.token.kind switch {
+            TokenKind.EqualEq => lhs.Equal(rhs),
+            TokenKind.NotEqual => lhs.NotEqual(rhs),
+            _ => throw new BluException("Invalid equality operator"),
+        };
+    }
+
+    Value VisitComparison(ComparisonNode node) {
+        Value lhs = Visit(node.Lhs);
+        Value rhs = Visit(node.Rhs);
+
+        return node.token.kind switch {
+            TokenKind.Less => lhs.Less(rhs),
+            TokenKind.LessEq => lhs.LessEq(rhs),
+            TokenKind.Greater => lhs.Greater(rhs),
+            TokenKind.GreaterEq => lhs.GreaterEq(rhs),
+            _ => throw new BluException("Invalid comparison operator"),
+        };
     }
 
     Value VisitBinaryOp(BinaryOpNode node) {

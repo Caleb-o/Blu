@@ -78,6 +78,9 @@ namespace Blu {
                     return new LenNode(token, Expression());
                 }
 
+                case TokenKind.If:
+                    return IfExpression();
+
                 case TokenKind.Let:
                     return BindingDeclaration();
                 
@@ -150,9 +153,67 @@ namespace Blu {
             return node;
         }
 
-        AstNode Expression() {
-            return Term();
+        AstNode Comparison() {
+            AstNode node = Term();
+
+            while (current.kind.In(TokenKind.Less, TokenKind.LessEq, TokenKind.Greater, TokenKind.GreaterEq)) {
+                Token token = current;
+                ConsumeAny();
+                node = new ComparisonNode(token, node, Expression());
+            }
+
+            return node;
         }
+
+        AstNode Equality() {
+            AstNode node = Comparison();
+
+            while (current.kind.In(TokenKind.EqualEq, TokenKind.NotEqual)) {
+                Token token = current;
+                ConsumeAny();
+                node = new EqualityNode(token, node, Expression());
+            }
+
+            return node;
+        }
+
+        AstNode And() {
+            AstNode node = Equality();
+
+            while (current.kind == TokenKind.And) {
+                Token token = current;
+                ConsumeAny();
+                node = new OrNode(token, node, Expression());
+            }
+
+            return node;
+        }
+
+        AstNode Or() {
+            AstNode node = And();
+
+            while (current.kind == TokenKind.Or) {
+                Token token = current;
+                ConsumeAny();
+                node = new OrNode(token, node, Expression());
+            }
+
+            return node;
+        }
+
+        AstNode Assignment() {
+            AstNode node = Or();
+
+            while (current.kind == TokenKind.LeftArrow) {
+                Token token = current;
+                ConsumeAny();
+                node = new AssignNode(token, node, Expression());
+            }
+
+            return node;
+        }
+
+        AstNode Expression() => Assignment();
 
         void Statement(BodyNode body) {
             switch (current.kind) {
@@ -198,7 +259,29 @@ namespace Blu {
             return new ForLoopNode(token, start, to, inner);
         }
 
-        // grammar: (let|var) id = expression
+        AstNode IfExpression() {
+            Token token = current;
+            ConsumeAny();
+
+            AstNode condition = Expression();
+            Consume(TokenKind.Then, "Expect 'then' after if condition");
+            AstNode trueBody = current.kind == TokenKind.LCurly
+                ? Block()
+                : Expression();
+
+            AstNode? falseBody = null;
+            if (current.kind == TokenKind.Else) {
+                ConsumeAny();
+                falseBody = current.kind == TokenKind.If
+                    ? IfExpression()
+                    : current.kind == TokenKind.LCurly
+                        ? Block()
+                        : Expression();
+            }
+            return new IfNode(token, condition, trueBody, falseBody);
+        }
+
+        // grammar: let id = expression
         AstNode BindingDeclaration() {
             ConsumeAny();
 
@@ -238,9 +321,7 @@ namespace Blu {
                 ConsumeAny();
                 Consume(TokenKind.RParen, "Expect ')' after '(' in function");
                 return parameterList;
-            }
-
-            if (current.kind.In(TokenKind.Arrow, TokenKind.Equal)) {
+            } else if (current.kind.In(TokenKind.Arrow, TokenKind.Equal)) {
                 return parameterList;
             }
 
