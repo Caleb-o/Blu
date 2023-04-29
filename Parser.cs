@@ -205,7 +205,7 @@ namespace Blu {
             Token identifier = current;
             Consume(TokenKind.Identifier, "Expect identifier after let");
 
-            if (current.kind == TokenKind.Identifier) {
+            if (current.kind.In(TokenKind.Identifier, TokenKind.LParen)) {
                 return FunctionDefinitionFP(identifier);
             } else {
                 Consume(TokenKind.Equal, "Expect '=' after identifier");
@@ -234,43 +234,33 @@ namespace Blu {
         List<IdentifierNode> GetParameterList() {
             List<IdentifierNode> parameterList = new();
 
-            if (current.kind != TokenKind.LParen) {
+            if (current.kind == TokenKind.LParen) {
+                ConsumeAny();
+                Consume(TokenKind.RParen, "Expect ')' after '(' in function");
                 return parameterList;
             }
 
-            Consume(TokenKind.LParen, "Expected '(' after function");
+            if (current.kind.In(TokenKind.Arrow, TokenKind.Equal)) {
+                return parameterList;
+            }
 
-            if (current.kind != TokenKind.RParen) {
+            if (!current.kind.In(TokenKind.Arrow, TokenKind.Equal)) {
                 var collect = () => {
                     Token token = current;
                     Consume(TokenKind.Identifier, "Expect identifier in parameter list");
                     return new IdentifierNode(token);
                 };
 
-                parameterList.Add(collect());
-
-                while (current.kind == TokenKind.Comma) {
-                    ConsumeAny();
+                while (current.kind == TokenKind.Identifier) {
                     parameterList.Add(collect());
                 }
             }
 
-            Consume(TokenKind.RParen, "Expected ')' after function parameter list");
             return parameterList;
         }
 
         AstNode FunctionDefinitionFP(Token identifier) {
-            List<IdentifierNode> parameters = new();
-
-            var collect = () => {
-                Token token = current;
-                Consume(TokenKind.Identifier, "Expect identifier in parameter list");
-                return new IdentifierNode(token);
-            };
-
-            while (current.kind == TokenKind.Identifier) {
-                parameters.Add(collect());
-            }
+            List<IdentifierNode> parameters = GetParameterList();
 
             Consume(TokenKind.Equal, "Expect '=' after parameter list");
 
@@ -287,13 +277,11 @@ namespace Blu {
             ConsumeAny();
             var parameters = GetParameterList();
 
-            AstNode body;
-            if (current.kind == TokenKind.Arrow) {
-                ConsumeAny();
-                body = new ReturnNode(token, Expression());
-            } else {
-                body = Block();
-            }
+            Consume(TokenKind.Arrow, "Expect '->' after parameter list");
+
+            AstNode body = current.kind == TokenKind.LCurly
+                ? Block()
+                : new ReturnNode(token, Expression());
 
             return new FunctionNode(token, parameters.ToArray(), body);
         }
