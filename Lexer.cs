@@ -171,6 +171,9 @@ namespace Blu {
                 "nil" => TokenKind.Nil,
                 "export" => TokenKind.Export,
                 "len" => TokenKind.Len,
+
+                "true" => TokenKind.True,
+                "false" => TokenKind.False,
                 _ => TokenKind.Identifier,
             };
         }
