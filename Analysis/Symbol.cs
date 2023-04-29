@@ -15,6 +15,6 @@ namespace Blu {
     }
 
     sealed class BindingSymbol : Symbol {
-        public BindingSymbol(Token token) : base(token.lexeme, token) {}
+        public BindingSymbol(Token token, string identifier) : base(identifier, token) {}
     }
 }

@@ -28,6 +28,15 @@ sealed class Interpreter {
     }
 
     void DeclareBinding(string binding, Value value) => bindings[bindings.Count - 1].Add(binding, value);
+
+    void DeclareOrOverwriteBinding(string binding, Value value) {
+        if (bindings[bindings.Count - 1].ContainsKey(binding)) {
+            bindings[bindings.Count - 1][binding] = value;
+        } else {
+            bindings[bindings.Count - 1].Add(binding, value);
+        }
+    }
+
     void PushScope() => bindings.Add(new Dictionary<string, Value>());
     void PopScope() => bindings.RemoveAt(bindings.Count - 1);
 
@@ -55,6 +64,8 @@ sealed class Interpreter {
             LiteralNode n => VisitLiteral(n),
             ListLiteralNode n => VisitListLiteral(n),
             IndexGetNode n => VisitIndexGet(n),
+            LenNode n => VisitLen(n),
+            ForLoopNode n => VisitForLoop(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -156,6 +167,35 @@ sealed class Interpreter {
         }
 
         throw new BluException("Could not index non-list or use non-number index");
+    }
+
+    Value VisitLen(LenNode node) {
+        Value item = Visit(node.Expression);
+
+        if (item is ListValue list) {
+            return new NumberValue(list.Values.Length);
+        }
+
+        throw new BluException($"Cannot index non-list");
+    }
+
+    Value VisitForLoop(ForLoopNode node) {
+        Value start = Visit(node.Start);
+        Value to = Visit(node.To);
+
+        if (start is NumberValue s && to is NumberValue t) {
+            int index = (int)s.Value;
+            int toIdx = (int)t.Value;
+
+            for (; index < toIdx; ++index) {
+                DeclareOrOverwriteBinding("idx", new NumberValue(index));
+                Visit(node.Body);
+            }
+
+            return NilValue.The;
+        }
+
+        throw new BluException("Cannot use non-number values in to range");
     }
 
     Value VisitBinaryOp(BinaryOpNode node) {

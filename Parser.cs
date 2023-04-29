@@ -43,7 +43,7 @@ namespace Blu {
             while (current.kind != TokenKind.EndOfFile) {
                 switch (current.kind) {
                     case TokenKind.Let:
-                        BindingDeclaration(node);
+                        node.AddNode(BindingDeclaration());
                         break;
                     
                     default:
@@ -72,6 +72,20 @@ namespace Blu {
 
                 case TokenKind.Fun:
                     return FunctionDefinition();
+                
+                case TokenKind.Len: {
+                    ConsumeAny();
+                    return new LenNode(token, Expression());
+                }
+
+                case TokenKind.Let:
+                    return BindingDeclaration();
+                
+                case TokenKind.Print:
+                    return PrintStatement();
+                
+                case TokenKind.For:
+                    return ForStatement();
                 
                 case TokenKind.LSquare:
                     return ListLiteral();
@@ -142,14 +156,6 @@ namespace Blu {
 
         void Statement(BodyNode body) {
             switch (current.kind) {
-                case TokenKind.Let:
-                    BindingDeclaration(body);
-                    break;
-                
-                case TokenKind.Print:
-                    PrintStatement(body);
-                    break;
-                
                 case TokenKind.Return:
                     ReturnStatement(body);
                     break;
@@ -173,22 +179,41 @@ namespace Blu {
             body.statements.Add(new ReturnNode(token, rhs));
         }
 
+        AstNode ForStatement() {
+            Token token = current;
+            ConsumeAny();
+
+            AstNode start = Expression();
+            Consume(TokenKind.To, "Expect 'to' after expression");
+            AstNode to = Expression();
+
+            AstNode inner;
+            if (current.kind == TokenKind.Equal) {
+                ConsumeAny();
+                inner = Expression();
+            } else {
+                inner = Block();
+            }
+            
+            return new ForLoopNode(token, start, to, inner);
+        }
+
         // grammar: (let|var) id = expression
-        void BindingDeclaration(BodyNode body) {
+        AstNode BindingDeclaration() {
             ConsumeAny();
 
             Token identifier = current;
             Consume(TokenKind.Identifier, "Expect identifier after let");
 
             if (current.kind == TokenKind.Identifier) {
-                body.AddNode(FunctionDefinitionFP(identifier));
+                return FunctionDefinitionFP(identifier);
             } else {
                 Consume(TokenKind.Equal, "Expect '=' after identifier");
-                body.AddNode(new BindingNode(identifier, Expression()));
+                return new BindingNode(identifier, Expression());
             }
         }
 
-        void PrintStatement(BodyNode node) {
+        AstNode PrintStatement() {
             Token token = current;
             ConsumeAny();
 
@@ -203,7 +228,7 @@ namespace Blu {
                 }
             }
 
-            node.AddNode(new PrintNode(token, arguments.ToArray()));
+            return new PrintNode(token, arguments.ToArray());
         }
 
         List<IdentifierNode> GetParameterList() {
@@ -262,7 +287,15 @@ namespace Blu {
             ConsumeAny();
             var parameters = GetParameterList();
 
-            return new FunctionNode(token, parameters.ToArray(), Block());
+            AstNode body;
+            if (current.kind == TokenKind.Arrow) {
+                ConsumeAny();
+                body = new ReturnNode(token, Expression());
+            } else {
+                body = Block();
+            }
+
+            return new FunctionNode(token, parameters.ToArray(), body);
         }
 
         ListLiteralNode ListLiteral() {

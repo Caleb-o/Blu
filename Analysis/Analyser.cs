@@ -64,6 +64,8 @@ sealed class Analyser {
             case UnaryOpNode n:         Visit(n.rhs); break;
             case ListLiteralNode n:     VisitListLiteral(n); break;
             case IndexGetNode n:        VisitIndexGet(n); break;
+            case LenNode n:             Visit(n.Expression); break;
+            case ForLoopNode n:         VisitForLoop(n); break;
 
             case LiteralNode: break;
             
@@ -96,7 +98,7 @@ sealed class Analyser {
                 SoftError($"Parameter '{param.token.lexeme}' has already been defined", param.token);
             }
             parameters.Add(param.token);
-            DefineSymbol(new BindingSymbol(param.token));
+            DefineSymbol(new BindingSymbol(param.token, param.token.lexeme));
         }
 
         Visit(node.body);
@@ -104,7 +106,7 @@ sealed class Analyser {
     }
 
     void VisitBinding(BindingNode node) {
-        DefineSymbol(new BindingSymbol(node.token));
+        DefineSymbol(new BindingSymbol(node.token, node.token.lexeme));
         Visit(node.expression);
     }
 
@@ -150,5 +152,13 @@ sealed class Analyser {
     void VisitIndexGet(IndexGetNode node) {
         Visit(node.Lhs);
         Visit(node.Index);
+    }
+
+    void VisitForLoop(ForLoopNode node) {
+        Visit(node.Start);
+        Visit(node.To);
+
+        DefineSymbol(new BindingSymbol(null, "idx"));
+        Visit(node.Body);
     }
 }

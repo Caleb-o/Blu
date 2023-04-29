@@ -1,7 +1,7 @@
 namespace Blu {
     enum TokenKind {
         Plus, Minus, Star, Slash, Equal,
-        Colon, Comma, Dot, Semicolon,
+        Colon, Comma, Dot, Semicolon, Arrow,
 
         Greater, Less, GreaterEq, LessEq,
         NotEqual, EqualEq,
@@ -14,7 +14,7 @@ namespace Blu {
         
         Identifier, Let, Return,
         If, Then, Else, Fun, For, To,
-        Export, Print,// Exports identifiers into an object, which can be imported
+        Export, Print, Len,// Exports identifiers into an object, which can be imported
 
         Error,
         EndOfFile,

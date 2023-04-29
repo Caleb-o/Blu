@@ -32,7 +32,7 @@ namespace Blu {
             // Character or error
             return peeked switch {
                 '+' => MakeCharToken(TokenKind.Plus),
-                '-' => MakeCharToken(TokenKind.Minus),
+                '-' => MatchingCharToken(TokenKind.Minus, (TokenKind.Arrow, '>')),
                 '*' => MakeCharToken(TokenKind.Star),
                 '/' => MakeCharToken(TokenKind.Slash),
 
@@ -166,7 +166,7 @@ namespace Blu {
                 "let" => TokenKind.Let,
                 "nil" => TokenKind.Nil,
                 "export" => TokenKind.Export,
-
+                "len" => TokenKind.Len,
                 _ => TokenKind.Identifier,
             };
         }
