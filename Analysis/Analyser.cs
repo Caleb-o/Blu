@@ -67,6 +67,7 @@ sealed class Analyser {
             case LenNode n:             Visit(n.Expression); break;
             case ForLoopNode n:         VisitForLoop(n); break;
             case IfNode n:              VisitIf(n); break;
+            case AssignNode n:          VisitAssign(n); break;
             case OrNode n:              VisitOr(n); break;
             case AndNode n:             VisitAnd(n); break;
             case EqualityNode n:        VisitEquality(n); break;
@@ -174,6 +175,11 @@ sealed class Analyser {
         if (node.FalseBody != null) {
             Visit(node.FalseBody);
         }
+    }
+
+    void VisitAssign(AssignNode node) {
+        Visit(node.Lhs);
+        Visit(node.Expression);
     }
 
     void VisitOr(OrNode node) {

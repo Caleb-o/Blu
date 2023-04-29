@@ -1,0 +1,7 @@
+let fib n =
+    if n <= 1
+    then n
+    else fib(n - 2) + fib(n - 1);
+
+let main () =
+    print 'Fib: ', fib(24);

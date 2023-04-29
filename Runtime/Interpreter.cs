@@ -29,7 +29,20 @@ sealed class Interpreter {
         PopScope();
     }
 
+    Value SetBinding(string binding, Value value) {
+        for (int i = bindings.Count - 1; i >= 0; --i) {
+            if (bindings[i].ContainsKey(binding)) {
+                Value oldValue = bindings[i][binding];
+                bindings[i][binding] = value;
+                return oldValue;
+            }
+        }
+
+        throw new BluException($"Cannot find binding '{binding}'");
+    }
+
     void DeclareBinding(string binding, Value value) => bindings[bindings.Count - 1].Add(binding, value);
+
 
     void DeclareOrOverwriteBinding(string binding, Value value) {
         if (bindings[bindings.Count - 1].ContainsKey(binding)) {
@@ -69,6 +82,7 @@ sealed class Interpreter {
             LenNode n => VisitLen(n),
             ForLoopNode n => VisitForLoop(n),
             IfNode n => VisitIf(n),
+            AssignNode n => VisitAssign(n),
             OrNode n => VisitOr(n),
             AndNode n => VisitAnd(n),
             EqualityNode n => VisitEquality(n),
@@ -222,6 +236,16 @@ sealed class Interpreter {
         }
 
         throw new BluException("Cannot operate if on a non-boolean value");
+    }
+
+    Value VisitAssign(AssignNode node) {
+        Value rhs = Visit(node.Expression);
+
+        if (node.Lhs is IdentifierNode id) {
+            return SetBinding(id.token.lexeme, rhs);
+        }
+
+        throw new BluException("Unsupported item in assignment");
     }
 
     Value VisitOr(OrNode node) {
