@@ -27,7 +27,7 @@ namespace Blu {
         }
 
         void Consume(TokenKind kind, string message) {
-            if (Kind() == kind) {
+            if (current.kind == kind) {
                 current = lexer.Next();
                 return;
             }
@@ -39,18 +39,15 @@ namespace Blu {
             this.current = this.lexer.Next();
         }
         
-        // Get current token's kind
-        TokenKind Kind() => current.kind;
-
         void TopLevelStatements(BodyNode node) {
             while (current.kind != TokenKind.EndOfFile) {
-                switch (Kind()) {
+                switch (current.kind) {
                     case TokenKind.Let:
                         BindingDeclaration(node);
                         break;
                     
                     default:
-                        Error($"Unknown start of top-level statement '{Kind()}'");
+                        Error($"Unknown start of top-level statement '{current.kind}'");
                         break;
                 }
 
@@ -87,7 +84,7 @@ namespace Blu {
         AstNode Call() {
             AstNode node = Primary();
 
-            while (Kind() == TokenKind.LParen) {
+            while (current.kind == TokenKind.LParen) {
                 node = FunctionCall(node);
             }
 
@@ -95,7 +92,7 @@ namespace Blu {
         }
 
         AstNode Unary() {
-            if (Kind() == TokenKind.Minus) {
+            if (current.kind == TokenKind.Minus) {
                 Token op = current;
                 ConsumeAny();
                 return new UnaryOpNode(op, Call());
@@ -107,7 +104,7 @@ namespace Blu {
         AstNode Factor() {
             AstNode node = Unary();
 
-            while (Kind().In(TokenKind.Star, TokenKind.Slash)) {
+            while (current.kind.In(TokenKind.Star, TokenKind.Slash)) {
                 Token op = current;
                 ConsumeAny();
                 node = new BinaryOpNode(op, node, Unary());
@@ -119,7 +116,7 @@ namespace Blu {
         AstNode Term() {
             AstNode node = Factor();
 
-            while (Kind().In(TokenKind.Plus, TokenKind.Minus)) {
+            while (current.kind.In(TokenKind.Plus, TokenKind.Minus)) {
                 Token op = current;
                 ConsumeAny();
                 node = new BinaryOpNode(op, node, Factor());
@@ -133,7 +130,7 @@ namespace Blu {
         }
 
         void Statement(BodyNode body) {
-            switch (Kind()) {
+            switch (current.kind) {
                 case TokenKind.Let:
                     BindingDeclaration(body);
                     break;
@@ -159,7 +156,7 @@ namespace Blu {
             ConsumeAny();
 
             AstNode? rhs = null;
-            if (Kind() != TokenKind.Semicolon) {
+            if (current.kind != TokenKind.Semicolon) {
                 rhs = Expression();
             }
             body.statements.Add(new ReturnNode(token, rhs));
@@ -172,7 +169,7 @@ namespace Blu {
             Token identifier = current;
             Consume(TokenKind.Identifier, "Expect identifier after let");
 
-            if (Kind() == TokenKind.Identifier) {
+            if (current.kind == TokenKind.Identifier) {
                 body.AddNode(FunctionDefinitionFP(identifier));
             } else {
                 Consume(TokenKind.Equal, "Expect '=' after identifier");
@@ -186,10 +183,10 @@ namespace Blu {
 
             List<AstNode> arguments = new();
 
-            if (Kind() != TokenKind.Semicolon) {
+            if (current.kind != TokenKind.Semicolon) {
                 arguments.Add(Expression());
 
-                while (Kind() == TokenKind.Comma) {
+                while (current.kind == TokenKind.Comma) {
                     ConsumeAny();
                     arguments.Add(Expression());
                 }
@@ -207,7 +204,7 @@ namespace Blu {
 
             Consume(TokenKind.LParen, "Expected '(' after function");
 
-            if (Kind() != TokenKind.RParen) {
+            if (current.kind != TokenKind.RParen) {
                 var collect = () => {
                     Token token = current;
                     Consume(TokenKind.Identifier, "Expect identifier in parameter list");
@@ -216,7 +213,7 @@ namespace Blu {
 
                 parameterList.Add(collect());
 
-                while (Kind() == TokenKind.Comma) {
+                while (current.kind == TokenKind.Comma) {
                     ConsumeAny();
                     parameterList.Add(collect());
                 }
@@ -235,13 +232,18 @@ namespace Blu {
                 return new IdentifierNode(token);
             };
 
-            while (Kind() == TokenKind.Identifier) {
+            while (current.kind == TokenKind.Identifier) {
                 parameters.Add(collect());
             }
 
             Consume(TokenKind.Equal, "Expect '=' after parameter list");
 
-            return new BindingNode(identifier, new FunctionNode(identifier, parameters.ToArray(), Block()));
+            return new BindingNode(
+                identifier,
+                new FunctionNode(identifier, parameters.ToArray(), current.kind == TokenKind.LCurly
+                    ? Block()
+                    : new ReturnNode(identifier, Expression()))
+            );
         }
 
         FunctionNode FunctionDefinition() {
@@ -257,10 +259,10 @@ namespace Blu {
 
             List<AstNode> arguments = new();
 
-            if (Kind() != TokenKind.RParen) {
+            if (current.kind != TokenKind.RParen) {
                 arguments.Add(Expression());
 
-                while(Kind() == TokenKind.Comma) {
+                while(current.kind == TokenKind.Comma) {
                     ConsumeAny();
                     arguments.Add(Expression());
                 }
@@ -275,7 +277,7 @@ namespace Blu {
 
             BodyNode newBlock = new();
 
-            while (Kind() != TokenKind.RCurly) {
+            while (current.kind != TokenKind.RCurly) {
                 Statement(newBlock);
             }
 

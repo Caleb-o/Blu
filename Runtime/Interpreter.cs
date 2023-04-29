@@ -7,6 +7,13 @@ namespace Blu.Runtime;
 sealed class Interpreter {
     readonly List<Dictionary<string, Value>> bindings = new();
 
+    sealed class ReturnEx : Exception {
+        public readonly Value value;
+        public ReturnEx(Value value) : base() {
+            this.value = value;
+        }
+    }
+
     public void Run(CompilationUnit unit) {
         PushScope();
         _ = Visit(unit.ast);
@@ -53,9 +60,6 @@ sealed class Interpreter {
     Value VisitProgram(ProgramNode node) => Visit(node.body);
     Value VisitBody(BodyNode node) {
         foreach (var n in node.statements) {
-            if (n is ReturnNode) {
-                return Visit(n);
-            }
             _ = Visit(n);
         }
         return NilValue.The;
@@ -76,7 +80,14 @@ sealed class Interpreter {
                 DeclareBinding(func.Value.parameters[i].token.lexeme, Visit(node.arguments[i]));
             }
 
-            Value value = Visit(func.Value.body);
+            Value value = NilValue.The;
+
+            try {
+                _ = Visit(func.Value.body);
+            } catch (ReturnEx ret) {
+                value = ret.value;
+            }
+
             PopScope();
 
             return value;
@@ -85,11 +96,10 @@ sealed class Interpreter {
         throw new BluException("Trying to call non-function value");
     }
 
-    Value VisitReturn(ReturnNode node) {
-        return node.rhs != null
-            ? Visit(node.rhs)
+    Value VisitReturn(ReturnNode node) =>
+        node.rhs != null
+            ? throw new ReturnEx(Visit(node.rhs))
             : NilValue.The;
-    }
 
     Value VisitPrint(PrintNode node) {
         StringBuilder sb = new();

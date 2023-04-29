@@ -97,7 +97,7 @@ sealed class Analyser {
             DefineSymbol(new BindingSymbol(param.token));
         }
 
-        VisitBody(node.body, false);
+        Visit(node.body);
         PopScope();
     }
 
