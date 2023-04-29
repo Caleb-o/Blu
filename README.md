@@ -1,5 +1,9 @@
 # Blu
+[![justforfunnoreally.dev badge](https://img.shields.io/badge/justforfunnoreally-dev-9ff)](https://justforfunnoreally.dev)
+
 Simple functional style programming language prototype
+
+Blu is a dynamic language and doesn't currently implement all FP features. It is a prototype, so it may be worked on or not.
 
 ## Example
 ```fs
