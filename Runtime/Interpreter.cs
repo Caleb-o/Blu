@@ -12,6 +12,7 @@ sealed class Interpreter {
     static readonly Dictionary<string, Value> CompiledFiles = new();
     static string? basePath;
     string currentPath;
+    RecordValue? currentRecord;
 
     public Interpreter(CompilationUnit unit) {
         this.Unit = unit;
@@ -65,14 +66,14 @@ sealed class Interpreter {
     void PushScope() => bindings.Add(new Dictionary<string, Value>());
     void PopScope() => bindings.RemoveAt(bindings.Count - 1);
 
-    Value FindBinding(string binding) {
+    Value? FindBinding(string binding) {
         for (int i = bindings.Count - 1; i >= 0; --i) {
             if (bindings[i].ContainsKey(binding)) {
                 return bindings[i][binding];
             }
         }
 
-        throw new BluException($"Cannot find binding '{binding}'");
+        return null;
     }
 
     Value Visit(AstNode node) {
@@ -105,7 +106,6 @@ sealed class Interpreter {
             PipeNode n => VisitPipe(n),
             ObjectNode n => VisitObject(n),
             CloneNode n => VisitClone(n),
-            SelfNode n => VisitSelf(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -181,8 +181,13 @@ sealed class Interpreter {
             }
             
             // Bring all record properties into scope
+            RecordValue? oldRecord = currentRecord;
+
             if (func.Caller != null) {
-                DeclareBinding("self", func.Caller);
+                foreach (var (id, innerValue) in func.Caller.Properties) {
+                    DeclareBinding(id, innerValue);
+                }
+                currentRecord = func.Caller;
             }
 
             Value value = NilValue.The;
@@ -194,6 +199,7 @@ sealed class Interpreter {
             }
 
             PopScope();
+            currentRecord = oldRecord;
 
             return value;
         } else if (lhs is RecordValue record) {
@@ -211,7 +217,7 @@ sealed class Interpreter {
                     string binding = record.Base?.Parameters[i].Item1.token.Span.ToString();
                     properties[binding] = Visit(node.arguments[i]);
                 }
-                
+
                 PopScope();
 
                 foreach (var (_, value) in properties) {
@@ -362,9 +368,13 @@ sealed class Interpreter {
         Value rhs = Visit(node.Expression);
         string binding = node.Lhs.token.Span.ToString();
 
+        if (currentRecord != null && currentRecord.Properties.ContainsKey(binding)) {
+            Value oldValue = currentRecord.Properties[binding];
+            currentRecord.Properties[binding] = rhs;
+            return oldValue;
+        } 
+
         return node.Lhs switch {
-            PropertyGetNode n when n.Lhs is SelfNode => ((RecordValue)FindBinding("self")).Properties[n.Rhs.token.Span.ToString()] = rhs,
-            PropertyGetNode n => ((RecordValue)Visit(n.Lhs)).Properties[n.Rhs.token.Span.ToString()] = rhs,
             IdentifierNode => SetBinding(binding, rhs),
             _ => throw new BluException($"Unsupported item in assignment '{node.Lhs}'"),
         };
@@ -442,11 +452,17 @@ sealed class Interpreter {
 
         PushScope();
         RecordValue record = new(node, inner);
+        
+        RecordValue? oldRecord = currentRecord;
+        currentRecord = record;
+        
         DeclareBinding("self", record);
 
         if (node.Parameters != null) {
             for (int i = 0; i < node.Parameters.Length; ++i) {
-                inner[node.Parameters[i].Item1.token.Span.ToString()] = NilValue.The;
+                string binding = node.Parameters[i].Item1.token.Span.ToString();
+                inner[binding] = NilValue.The;
+                DeclareBinding(binding, NilValue.The);
             }
         }
 
@@ -458,6 +474,7 @@ sealed class Interpreter {
                 if (composeItem is RecordValue rec) {
                     foreach (var (key, value) in rec.Properties) {
                         inner[key] = value;
+                        DeclareOrOverwriteBinding(key, value);
                     }
                 } else {
                     throw new BluException($"Cannot compose with non-class item '{itemName}'");
@@ -476,6 +493,7 @@ sealed class Interpreter {
         }
 
         PopScope();
+        currentRecord = oldRecord;
         return record;
     }
 
@@ -489,8 +507,6 @@ sealed class Interpreter {
             _ => throw new BluException($"Cannot clone {value}"),
         };
     }
-
-    Value VisitSelf(SelfNode _) => FindBinding("self");
 
     Value VisitBinaryOp(BinaryOpNode node) {
         Value lhs = Visit(node.lhs);

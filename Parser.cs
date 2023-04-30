@@ -71,11 +71,6 @@ sealed class Parser {
                 return new LiteralNode(token);
             }
 
-            case TokenKind.Self: {
-                ConsumeAny();
-                return new SelfNode(token);
-            }
-
             case TokenKind.LParen: {
                 ConsumeAny();
                 AstNode expr = Expression();

@@ -98,7 +98,6 @@ sealed class Analyser {
             case PipeNode n:            VisitPipe(n); break;
             case ObjectNode n:          VisitObject(n); break;
             case CloneNode n:           Visit(n.Expression); break;
-            case SelfNode n:            VisitSelf(n); break;
 
             // Ignore
             case ImportNode:
@@ -262,9 +261,13 @@ sealed class Analyser {
         Visit(node.Expression);
 
         if (node.Lhs is IdentifierNode id) {
-            BindingSymbol sym = (BindingSymbol)FindSymbol(id.token.Span);
+            BindingSymbol sym = FindSymbol(id.token.Span);
+            if (sym == null) {
+                SoftError($"Binding '{id.token.Span.String()}' does not exist in any scope", id.token);
+                return;
+            }
             if (!sym.Mutable) {
-                SoftError($"Binding '{id.token.Span.String()}' is not mutable", node.token);
+                SoftError($"Binding '{id.token.Span.String()}' is not mutable", id.token);
             }
         }
     }
@@ -350,11 +353,5 @@ sealed class Analyser {
         PopScope();
 
         processing = last;
-    }
-
-    void VisitSelf(SelfNode node) {
-        if (processing != Processing.Object) {
-            SoftError("Cannot use 'self' outside of objects", node.token);
-        }
     }
 }
