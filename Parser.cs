@@ -69,7 +69,13 @@ namespace Blu {
                     return new LiteralNode(token);
                 }
 
-                // Identifier
+                case TokenKind.LParen: {
+                    ConsumeAny();
+                    AstNode expr = Expression();
+                    Consume(TokenKind.RParen, "Expect ')' after grouped expression");
+                    return expr;
+                }
+
                 case TokenKind.Identifier:
                     ConsumeAny();
                     return new IdentifierNode(token);
