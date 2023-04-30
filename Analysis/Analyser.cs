@@ -160,6 +160,10 @@ sealed class Analyser {
             }
 
             case BindingKind.Mutable: {
+                if (node.Explicit) {
+                    SoftError("Cannot use mutable and explicit on the same binding", node.token);
+                }
+
                 Visit(node.expression);
                 DefineSymbol(new BindingSymbol(node.token, node.token.Span, node.Explicit, true));
                 break;
