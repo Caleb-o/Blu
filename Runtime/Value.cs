@@ -107,6 +107,7 @@ sealed class StringValue : Value {
 
 sealed class FunctionValue : Value {
     public readonly FunctionNode Value;
+    public RecordValue? Caller;
 
     public FunctionValue(FunctionNode value) {
         Value = value;

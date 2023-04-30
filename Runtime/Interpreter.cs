@@ -53,19 +53,14 @@ sealed class Interpreter {
             }
         }
 
-        throw new BluException($"Cannot find binding '{binding}'");
+        throw new BluException($"Cannot find binding '{binding}' to set");
     }
 
     void DeclareBinding(string binding, Value value) => bindings[bindings.Count - 1].Add(binding, value);
 
 
-    void DeclareOrOverwriteBinding(string binding, Value value) {
-        if (bindings[bindings.Count - 1].ContainsKey(binding)) {
-            bindings[bindings.Count - 1][binding] = value;
-        } else {
-            bindings[bindings.Count - 1].Add(binding, value);
-        }
-    }
+    void DeclareOrOverwriteBinding(string binding, Value value) =>
+        bindings[bindings.Count - 1][binding] = value;
 
     void PushScope() => bindings.Add(new Dictionary<string, Value>());
     void PopScope() => bindings.RemoveAt(bindings.Count - 1);
@@ -183,6 +178,13 @@ sealed class Interpreter {
                 DeclareBinding(func.Value.parameters[i].token.Span.ToString(), Visit(node.arguments[i]));
             }
 
+            // Bring all record properties into scope
+            if (func.Caller != null) {
+                foreach (var (id, innerValue) in func.Caller.Properties) {
+                    DeclareBinding(id, innerValue);
+                }
+            }
+
             Value value = NilValue.The;
 
             try {
@@ -218,7 +220,6 @@ sealed class Interpreter {
     Value VisitBinding(BindingNode node) {
         Value value = Visit(node.expression);
         DeclareOrOverwriteBinding(node.token.Span.ToString(), value);
-
         return value;
     }
 
@@ -409,14 +410,14 @@ sealed class Interpreter {
     Value VisitClass(ClassNode node) {
         Dictionary<string, Value> inner = new();
 
+        PushScope();
         if (node.Composed != null) {
             foreach (var compose in node.Composed) {
                 string itemName = compose.token.Span.ToString();
                 Value composeItem = FindBinding(itemName);
 
-                if (composeItem is RecordValue record) {
-                    Dictionary<string, Value> values = new(record.Properties);
-                    foreach (var (key, value) in values) {
+                if (composeItem is RecordValue rec) {
+                    foreach (var (key, value) in rec.Properties) {
                         inner[key] = value;
                     }
                 } else {
@@ -425,14 +426,20 @@ sealed class Interpreter {
             }
         }
 
-        PushScope();
-
         foreach (var binding in node.Inner) {
             inner[binding.token.Span.ToString()] = VisitBinding(binding);
         }
 
+        RecordValue record = new(inner);
+
+        foreach (var (_, value) in inner) {
+            if (value is FunctionValue func) {
+                func.Caller = record;
+            }
+        }
+
         PopScope();
-        return new RecordValue(inner);
+        return record;
     }
 
     Value VisitBinaryOp(BinaryOpNode node) {
