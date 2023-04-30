@@ -103,7 +103,7 @@ sealed class Interpreter {
             ComparisonNode n => VisitComparison(n),
             PrependNode n => VisitPrepend(n),
             PipeNode n => VisitPipe(n),
-            ClassNode n => VisitClass(n),
+            ObjectNode n => VisitObject(n),
             CloneNode n => VisitClone(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
@@ -139,7 +139,7 @@ sealed class Interpreter {
             unit = Program.CompileAndRun(newPath);
             currentPath = oldPath;
 
-            value = new RecordValue(unit.exports);
+            value = new RecordValue(null, null, unit.exports);
             Interpreter.CompiledFiles.Add(newPath, value);
         } else {
             throw new BluException($"Cannot find file path '{newPath}'");
@@ -198,7 +198,37 @@ sealed class Interpreter {
 
             return value;
         } else if (lhs is RecordValue record) {
-            return record.Clone();
+            if (record.Parameters != null) {
+                if (record.Parameters?.Length != node.arguments.Length) {
+                    throw new BluException($"Record constructor received {node.arguments.Length} arguments, but expected {record.Parameters?.Length}");
+                }
+
+                Dictionary<string, Value> properties = new(record.Properties);
+                PushScope();
+                for (int i = 0; i < record.Parameters.Length; ++i) {
+                    string binding = record.Parameters[i].Span.ToString();
+                    Value value = Visit(node.arguments[i]);
+
+                    properties[binding] = value;
+                    DeclareOrOverwriteBinding(binding, value);
+                }
+
+                foreach (var binding in record.Base?.Inner) {
+                    properties[binding.token.Span.ToString()] = Visit(binding);
+                }
+                PopScope();
+
+                RecordValue newRec = new(record.Base, record.Parameters, properties);
+                foreach (var (_, value) in properties) {
+                    if (value is FunctionValue f) {
+                        f.Caller = newRec;
+                    }
+                }
+
+                return newRec;
+            } else {
+                return record.Clone();
+            }
         }
 
         throw new BluException("Trying to call non-function value");
@@ -254,7 +284,7 @@ sealed class Interpreter {
         foreach (var (key, item) in node.Values) {
             values[key.token.Span.String().ToString()] = Visit(item);
         }
-        return new RecordValue(values);
+        return new RecordValue(null, null, values);
     }
 
     Value VisitIndexGet(IndexGetNode node) {
@@ -410,10 +440,20 @@ sealed class Interpreter {
 
     Value VisitPipe(PipeNode node) => Visit(node.Rhs);
 
-    Value VisitClass(ClassNode node) {
+    Value VisitObject(ObjectNode node) {
         Dictionary<string, Value> inner = new();
 
+        Token[]? parameters = null;
+
         PushScope();
+        if (node.Parameters != null) {
+            parameters = new Token[node.Parameters.Length];
+            for (int i = 0; i < node.Parameters.Length; ++i) {
+                parameters[i] = node.Parameters[i].token;
+                inner[parameters[i].Span.ToString()] = NilValue.The;
+            }
+        }
+
         if (node.Composed != null) {
             foreach (var compose in node.Composed) {
                 string itemName = compose.token.Span.ToString();
@@ -433,7 +473,7 @@ sealed class Interpreter {
             inner[binding.token.Span.ToString()] = VisitBinding(binding);
         }
 
-        RecordValue record = new(inner);
+        RecordValue record = new(node, parameters, inner);
 
         foreach (var (_, value) in inner) {
             if (value is FunctionValue func) {

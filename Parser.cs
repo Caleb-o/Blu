@@ -96,8 +96,8 @@ sealed class Parser {
             case TokenKind.Let:
                 return BindingDeclaration();
 
-            case TokenKind.Class:
-                return ClassDeclaration();
+            case TokenKind.Object:
+                return ObjectDeclaration();
             
             case TokenKind.Print:
                 return PrintStatement();
@@ -355,7 +355,7 @@ sealed class Parser {
         }
     }
 
-    AstNode ClassDeclaration() {
+    AstNode ObjectDeclaration() {
         Token token = current;
         ConsumeAny();
 
@@ -368,7 +368,7 @@ sealed class Parser {
                 parameters = new();
                 var collect = () => {
                     Token token = current;
-                    Consume(TokenKind.Identifier, "Expect identifier in parameter list");
+                    Consume(TokenKind.Identifier, "Expect identifier in object parameter list");
                     return new IdentifierNode(token);
                 };
 
@@ -378,8 +378,8 @@ sealed class Parser {
                     ConsumeAny();
                     parameters.Add(collect());
                 }
-                Consume(TokenKind.RParen, "Expect ')' after parameter list");
             }
+            Consume(TokenKind.RParen, "Expect ')' after object parameter list");
         }
         
         List<BindingNode> bindings = new();
@@ -402,14 +402,14 @@ sealed class Parser {
             }
         }
 
-        Consume(TokenKind.LCurly, "Expect '{' after class keyword");
+        Consume(TokenKind.LCurly, "Expect '{' after object keyword");
         while (current.Kind != TokenKind.RCurly) {
             bindings.Add(BindingDeclaration());
             Consume(TokenKind.Semicolon, "Expect ';' after binding");
         }
-        Consume(TokenKind.RCurly, "Expect '}' after class declaration");
+        Consume(TokenKind.RCurly, "Expect '}' after object declaration");
 
-        return new ClassNode(token, parameters?.ToArray(), bindings.ToArray(), composed?.ToArray());
+        return new ObjectNode(token, parameters?.ToArray(), bindings.ToArray(), composed?.ToArray());
     }
 
     AstNode ExportDeclaration() {

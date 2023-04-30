@@ -91,7 +91,7 @@ sealed class Analyser {
             case ComparisonNode n:      VisitComparison(n); break;
             case PrependNode n:         VisitPrepend(n); break;
             case PipeNode n:            VisitPipe(n); break;
-            case ClassNode n:           VisitClass(n); break;
+            case ObjectNode n:          VisitObject(n); break;
             case CloneNode n:           Visit(n.Expression); break;
 
             // Ignore
@@ -306,16 +306,31 @@ sealed class Analyser {
         }
     }
 
-    void VisitClass(ClassNode node) {
+    void VisitObject(ObjectNode node) {
+        PushScope();
+        if (node.Parameters != null) {
+            HashSet<string> parameters = new();
+            foreach (var compose in node.Parameters) {
+                if (!parameters.Add(compose.token.Span.ToString())) {
+                    Warning($"Record constructor already contains '{compose.token.Span}'", compose.token);
+                }
+                DefineSymbol(new BindingSymbol(compose.token, compose.token.Span, true, false));
+            }
+        }
+
         if (node.Composed != null) {
+            HashSet<string> composed = new();
             foreach (var compose in node.Composed) {
                 if (FindSymbol(compose.token.Span) == null) {
                     SoftError($"Cannot compose with '{compose.token.Span}' as it does not exist", compose.token);
                 }
+
+                if (!composed.Add(compose.token.Span.ToString())) {
+                    Warning($"Already composing object with '{compose.token.Span}'", compose.token);
+                }
             }
         }
 
-        PushScope();
         foreach (var n in node.Inner) {
             Visit(n);
         }
