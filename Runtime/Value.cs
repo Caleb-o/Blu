@@ -152,8 +152,8 @@ sealed class ListValue : Value {
 
     public Value Prepend(Value lhs) {
         Value[] values = new Value[Values.Length + 1];
-        Array.Copy(Values, values, Values.Length);
-        values[Values.Length] = lhs;
+        values[0] = lhs;
+        Array.Copy(Values, 0, values, 1, Values.Length);
         return new ListValue(values);
     }
 
