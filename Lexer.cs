@@ -154,6 +154,7 @@ namespace Blu {
                 "return" => TokenKind.Return,
                 "mut" => TokenKind.Mutable,
                 "rec" => TokenKind.Rec,
+                "self" => TokenKind.Self,
                 "object" => TokenKind.Object,
                 "explicit" => TokenKind.Explicit,
                 

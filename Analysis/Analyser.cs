@@ -4,9 +4,14 @@ using System.Collections.Generic;
 namespace Blu;
 
 sealed class Analyser {
+    enum Processing {
+        None, Object,
+    }
+
     readonly List<List<BindingSymbol>> symbolTable = new();
     readonly CompilationUnit unit;
     bool hadError = false;
+    Processing processing = Processing.None;
 
     public Analyser(CompilationUnit unit) {
         this.unit = unit;
@@ -93,6 +98,7 @@ sealed class Analyser {
             case PipeNode n:            VisitPipe(n); break;
             case ObjectNode n:          VisitObject(n); break;
             case CloneNode n:           Visit(n.Expression); break;
+            case SelfNode n:            VisitSelf(n); break;
 
             // Ignore
             case ImportNode:
@@ -311,14 +317,17 @@ sealed class Analyser {
     }
 
     void VisitObject(ObjectNode node) {
+        Processing last = processing;
+        processing = Processing.Object;
+
         PushScope();
         if (node.Parameters != null) {
             HashSet<string> parameters = new();
-            foreach (var compose in node.Parameters) {
+            foreach (var (compose, mutable) in node.Parameters) {
                 if (!parameters.Add(compose.token.Span.ToString())) {
                     Warning($"Record constructor already contains '{compose.token.Span}'", compose.token);
                 }
-                DefineSymbol(new BindingSymbol(compose.token, compose.token.Span, true, false));
+                DefineSymbol(new BindingSymbol(compose.token, compose.token.Span, true, mutable));
             }
         }
 
@@ -339,5 +348,13 @@ sealed class Analyser {
             Visit(n);
         }
         PopScope();
+
+        processing = last;
+    }
+
+    void VisitSelf(SelfNode node) {
+        if (processing != Processing.Object) {
+            SoftError("Cannot use 'self' outside of objects", node.token);
+        }
     }
 }

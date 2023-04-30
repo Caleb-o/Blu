@@ -105,6 +105,7 @@ sealed class Interpreter {
             PipeNode n => VisitPipe(n),
             ObjectNode n => VisitObject(n),
             CloneNode n => VisitClone(n),
+            SelfNode n => VisitSelf(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -139,7 +140,7 @@ sealed class Interpreter {
             unit = Program.CompileAndRun(newPath);
             currentPath = oldPath;
 
-            value = new RecordValue(null, null, unit.exports);
+            value = new RecordValue(null, unit.exports);
             Interpreter.CompiledFiles.Add(newPath, value);
         } else {
             throw new BluException($"Cannot find file path '{newPath}'");
@@ -178,12 +179,10 @@ sealed class Interpreter {
             for (int i = 0; i < func.Value.parameters.Length; ++i) {
                 DeclareBinding(func.Value.parameters[i].token.Span.ToString(), Visit(node.arguments[i]));
             }
-
+            
             // Bring all record properties into scope
             if (func.Caller != null) {
-                foreach (var (id, innerValue) in func.Caller.Properties) {
-                    DeclareBinding(id, innerValue);
-                }
+                DeclareBinding("self", func.Caller);
             }
 
             Value value = NilValue.The;
@@ -198,27 +197,23 @@ sealed class Interpreter {
 
             return value;
         } else if (lhs is RecordValue record) {
-            if (record.Parameters != null) {
-                if (record.Parameters?.Length != node.arguments.Length) {
-                    throw new BluException($"Record constructor received {node.arguments.Length} arguments, but expected {record.Parameters?.Length}");
+            if (record.Base?.Parameters != null) {
+                if (record.Base?.Parameters?.Length != node.arguments.Length) {
+                    throw new BluException($"Record constructor received {node.arguments.Length} arguments, but expected {record.Base?.Parameters?.Length}");
                 }
 
-                Dictionary<string, Value> properties = new(record.Properties);
                 PushScope();
-                for (int i = 0; i < record.Parameters.Length; ++i) {
-                    string binding = record.Parameters[i].Span.ToString();
-                    Value value = Visit(node.arguments[i]);
+                Dictionary<string, Value> properties = new(record.Properties);
+                RecordValue newRec = new(record.Base, properties);
+                DeclareBinding("self", newRec);
 
-                    properties[binding] = value;
-                    DeclareOrOverwriteBinding(binding, value);
+                for (int i = 0; i < record.Base?.Parameters.Length; ++i) {
+                    string binding = record.Base?.Parameters[i].Item1.token.Span.ToString();
+                    properties[binding] = Visit(node.arguments[i]);
                 }
-
-                foreach (var binding in record.Base?.Inner) {
-                    properties[binding.token.Span.ToString()] = Visit(binding);
-                }
+                
                 PopScope();
 
-                RecordValue newRec = new(record.Base, record.Parameters, properties);
                 foreach (var (_, value) in properties) {
                     if (value is FunctionValue f) {
                         f.Caller = newRec;
@@ -284,7 +279,7 @@ sealed class Interpreter {
         foreach (var (key, item) in node.Values) {
             values[key.token.Span.String().ToString()] = Visit(item);
         }
-        return new RecordValue(null, null, values);
+        return new RecordValue(null, values);
     }
 
     Value VisitIndexGet(IndexGetNode node) {
@@ -365,12 +360,14 @@ sealed class Interpreter {
 
     Value VisitAssign(AssignNode node) {
         Value rhs = Visit(node.Expression);
+        string binding = node.Lhs.token.Span.ToString();
 
-        if (node.Lhs is IdentifierNode id) {
-            return SetBinding(id.token.Span.ToString(), rhs);
-        }
-
-        throw new BluException("Unsupported item in assignment");
+        return node.Lhs switch {
+            PropertyGetNode n when n.Lhs is SelfNode => ((RecordValue)FindBinding("self")).Properties[n.Rhs.token.Span.ToString()] = rhs,
+            PropertyGetNode n => ((RecordValue)Visit(n.Lhs)).Properties[n.Rhs.token.Span.ToString()] = rhs,
+            IdentifierNode => SetBinding(binding, rhs),
+            _ => throw new BluException($"Unsupported item in assignment '{node.Lhs}'"),
+        };
     }
 
     Value VisitOr(OrNode node) {
@@ -443,14 +440,13 @@ sealed class Interpreter {
     Value VisitObject(ObjectNode node) {
         Dictionary<string, Value> inner = new();
 
-        Token[]? parameters = null;
-
         PushScope();
+        RecordValue record = new(node, inner);
+        DeclareBinding("self", record);
+
         if (node.Parameters != null) {
-            parameters = new Token[node.Parameters.Length];
             for (int i = 0; i < node.Parameters.Length; ++i) {
-                parameters[i] = node.Parameters[i].token;
-                inner[parameters[i].Span.ToString()] = NilValue.The;
+                inner[node.Parameters[i].Item1.token.Span.ToString()] = NilValue.The;
             }
         }
 
@@ -473,8 +469,6 @@ sealed class Interpreter {
             inner[binding.token.Span.ToString()] = VisitBinding(binding);
         }
 
-        RecordValue record = new(node, parameters, inner);
-
         foreach (var (_, value) in inner) {
             if (value is FunctionValue func) {
                 func.Caller = record;
@@ -495,6 +489,8 @@ sealed class Interpreter {
             _ => throw new BluException($"Cannot clone {value}"),
         };
     }
+
+    Value VisitSelf(SelfNode _) => FindBinding("self");
 
     Value VisitBinaryOp(BinaryOpNode node) {
         Value lhs = Visit(node.lhs);

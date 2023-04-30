@@ -180,17 +180,15 @@ sealed class ListValue : Value {
 
 sealed class RecordValue : Value {
     public readonly ObjectNode? Base;
-    public readonly Token[]? Parameters;
-    public readonly IReadOnlyDictionary<string, Value> Properties;
+    public readonly Dictionary<string, Value> Properties;
 
-    public RecordValue(ObjectNode? b, Token[]? parameters, Dictionary<string, Value> properties) {
+    public RecordValue(ObjectNode? b, Dictionary<string, Value> properties) {
         this.Base = b;
-        this.Parameters = parameters;
         this.Properties = properties;
     }
 
     public RecordValue Clone() =>
-        new(Base, Parameters, new Dictionary<string, Value>(Properties));
+        new(Base, new Dictionary<string, Value>(Properties));
 
     public override string ToString() {
         StringBuilder sb = new();
@@ -200,7 +198,7 @@ sealed class RecordValue : Value {
         foreach (var item in Properties) {
             sb.Append($"{item.Key}: {item.Value}");
 
-            if (i < Properties.Count - 1) {
+            if (i++ < Properties.Count - 1) {
                 sb.Append(", ");
             }
         }

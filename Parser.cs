@@ -71,6 +71,11 @@ sealed class Parser {
                 return new LiteralNode(token);
             }
 
+            case TokenKind.Self: {
+                ConsumeAny();
+                return new SelfNode(token);
+            }
+
             case TokenKind.LParen: {
                 ConsumeAny();
                 AstNode expr = Expression();
@@ -359,7 +364,7 @@ sealed class Parser {
         Token token = current;
         ConsumeAny();
 
-        List<IdentifierNode>? parameters = null;
+        List<(IdentifierNode, bool)>? parameters = null;
 
         if (current.Kind == TokenKind.LParen) {
             ConsumeAny();
@@ -367,9 +372,16 @@ sealed class Parser {
             if (current.Kind != TokenKind.RParen) {
                 parameters = new();
                 var collect = () => {
+                    bool mutable = false;
+
+                    if (current.Kind == TokenKind.Mutable) {
+                        ConsumeAny();
+                        mutable = true;
+                    }
+
                     Token token = current;
                     Consume(TokenKind.Identifier, "Expect identifier in object parameter list");
-                    return new IdentifierNode(token);
+                    return (new IdentifierNode(token), mutable);
                 };
 
                 parameters.Add(collect());
@@ -402,12 +414,14 @@ sealed class Parser {
             }
         }
 
-        Consume(TokenKind.LCurly, "Expect '{' after object keyword");
-        while (current.Kind != TokenKind.RCurly) {
-            bindings.Add(BindingDeclaration());
-            Consume(TokenKind.Semicolon, "Expect ';' after binding");
+        if (current.Kind == TokenKind.LCurly) {
+            Consume(TokenKind.LCurly, "Expect '{' after object keyword");
+            while (current.Kind != TokenKind.RCurly) {
+                bindings.Add(BindingDeclaration());
+                Consume(TokenKind.Semicolon, "Expect ';' after binding");
+            }
+            Consume(TokenKind.RCurly, "Expect '}' after object declaration");
         }
-        Consume(TokenKind.RCurly, "Expect '}' after object declaration");
 
         return new ObjectNode(token, parameters?.ToArray(), bindings.ToArray(), composed?.ToArray());
     }
