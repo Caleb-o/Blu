@@ -27,6 +27,10 @@ sealed class Analyser {
         Console.WriteLine($"Error occured: {message} in {unit.fileName} at {token.Line}:{token.Column}");
     }
 
+    void Warning(string message, Token token) {
+        Console.WriteLine($"Warning: {message} in {unit.fileName} at {token.Line}:{token.Column}");
+    }
+
     BindingSymbol? FindLocalSymbol(Span identifier) {
         for (int j = symbolTable[symbolTable.Count - 1].Count - 1; j >= 0; --j) {
             if (symbolTable[symbolTable.Count - 1][j].Identifier == identifier) {
@@ -166,6 +170,10 @@ sealed class Analyser {
                 Visit(node.expression);
                 break;
             }
+        }
+
+        if (symbolTable.Count == 1 && node.token.Span.ToString() == "main" && !node.Explicit) {
+            Warning("Main should be marked as explicit", node.token);
         }
     }
 

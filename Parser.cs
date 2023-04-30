@@ -358,6 +358,29 @@ sealed class Parser {
     AstNode ClassDeclaration() {
         Token token = current;
         ConsumeAny();
+
+        List<IdentifierNode>? parameters = null;
+
+        if (current.Kind == TokenKind.LParen) {
+            ConsumeAny();
+
+            if (current.Kind != TokenKind.RParen) {
+                parameters = new();
+                var collect = () => {
+                    Token token = current;
+                    Consume(TokenKind.Identifier, "Expect identifier in parameter list");
+                    return new IdentifierNode(token);
+                };
+
+                parameters.Add(collect());
+
+                while (current.Kind == TokenKind.Comma) {
+                    ConsumeAny();
+                    parameters.Add(collect());
+                }
+                Consume(TokenKind.RParen, "Expect ')' after parameter list");
+            }
+        }
         
         List<BindingNode> bindings = new();
         List<IdentifierNode>? composed = null;
@@ -386,7 +409,7 @@ sealed class Parser {
         }
         Consume(TokenKind.RCurly, "Expect '}' after class declaration");
 
-        return new ClassNode(token, bindings.ToArray(), composed?.ToArray());
+        return new ClassNode(token, parameters?.ToArray(), bindings.ToArray(), composed?.ToArray());
     }
 
     AstNode ExportDeclaration() {
