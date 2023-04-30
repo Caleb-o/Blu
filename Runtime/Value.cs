@@ -185,6 +185,9 @@ sealed class RecordValue : Value {
         this.Properties = properties;
     }
 
+    public RecordValue Clone() =>
+        new(new Dictionary<string, Value>(Properties));
+
     public override string ToString() {
         StringBuilder sb = new();
 

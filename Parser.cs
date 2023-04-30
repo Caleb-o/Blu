@@ -101,6 +101,9 @@ sealed class Parser {
             
             case TokenKind.Print:
                 return PrintStatement();
+
+            case TokenKind.Clone:
+                return CloneStatement();
             
             case TokenKind.For:
                 return ForStatement();
@@ -426,6 +429,12 @@ sealed class Parser {
         }
 
         return new PrintNode(token, arguments.ToArray());
+    }
+
+    AstNode CloneStatement() {
+        Token token = current;
+        ConsumeAny();
+        return new CloneNode(token, Expression());
     }
 
     List<IdentifierNode> GetParameterList() {

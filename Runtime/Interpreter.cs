@@ -104,6 +104,7 @@ sealed class Interpreter {
             PrependNode n => VisitPrepend(n),
             PipeNode n => VisitPipe(n),
             ClassNode n => VisitClass(n),
+            CloneNode n => VisitClone(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -196,6 +197,8 @@ sealed class Interpreter {
             PopScope();
 
             return value;
+        } else if (lhs is RecordValue record) {
+            return record.Clone();
         }
 
         throw new BluException("Trying to call non-function value");
@@ -440,6 +443,17 @@ sealed class Interpreter {
 
         PopScope();
         return record;
+    }
+
+    Value VisitClone(CloneNode node) {
+        Value value = Visit(node.Expression);
+        return value switch {
+            NumberValue n => n,
+            BoolValue n => n,
+            StringValue n => n,
+            RecordValue n => n.Clone(),
+            _ => throw new BluException($"Cannot clone {value}"),
+        };
     }
 
     Value VisitBinaryOp(BinaryOpNode node) {

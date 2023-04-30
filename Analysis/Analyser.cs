@@ -88,6 +88,7 @@ sealed class Analyser {
             case PrependNode n:         VisitPrepend(n); break;
             case PipeNode n:            VisitPipe(n); break;
             case ClassNode n:           VisitClass(n); break;
+            case CloneNode n:           Visit(n.Expression); break;
 
             // Ignore
             case ImportNode:
