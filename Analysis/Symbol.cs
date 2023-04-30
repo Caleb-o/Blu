@@ -2,11 +2,11 @@ using System.Collections.Generic;
 
 namespace Blu {
     abstract class Symbol {
-        public readonly string identifier;
+        public readonly Span identifier;
         // Builtins will not have tokens
         public readonly Token token;
 
-        public Symbol(string identifier, Token token) {
+        public Symbol(Span identifier, Token token) {
             this.identifier = identifier;
             this.token = token;
         }
@@ -16,7 +16,7 @@ namespace Blu {
 
     sealed class BindingSymbol : Symbol {
         public readonly bool Mutable;
-        public BindingSymbol(Token token, string identifier, bool mutable) : base(identifier, token) {
+        public BindingSymbol(Token token, Span identifier, bool mutable) : base(identifier, token) {
             this.Mutable = mutable;
         }
     }

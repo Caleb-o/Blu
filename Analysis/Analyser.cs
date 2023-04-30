@@ -29,10 +29,10 @@ sealed class Analyser {
     void SoftError(string message, Token token) {
         hadError = true;
 
-        Console.WriteLine($"Error occured: {message} in {this.unit.fileName} at {token.line}:{token.column}");
+        Console.WriteLine($"Error occured: {message} in {this.unit.fileName} at {token.Line}:{token.Column}");
     }
 
-    Symbol? FindSymbol(string identifier) {
+    Symbol? FindSymbol(Span identifier) {
         for (int i = symbolTable.Count - 1; i >= 0; --i) {
             var table = symbolTable[i];
 
@@ -92,17 +92,17 @@ sealed class Analyser {
     }
 
     void VisitExport(ExportNode node) {
-        HashSet<string> exported = new();
+        HashSet<Span> exported = new();
 
         foreach (var id in node.Identifiers) {
-            string export = id.token.lexeme;
+            Span export = id.token.Span;
 
             if (FindSymbol(export) == null) {
-                SoftError($"Cannot export item '{export}' which does not exist", id.token);
+                SoftError($"Cannot export item '{export.String()}' which does not exist", id.token);
             }
             
             if (!exported.Add(export)) {
-                SoftError($"Item '{export}' has already been exported", id.token);
+                SoftError($"Item '{export.String()}' has already been exported", id.token);
             }
         }
     }
@@ -119,15 +119,15 @@ sealed class Analyser {
 
     void VisitFunction(FunctionNode node) {
         List<Token> parameters = new();
-        HashSet<string> parameterNames = new();
+        HashSet<Span> parameterNames = new();
 
         PushScope();
         foreach (var param in node.parameters) {
-            if (!parameterNames.Add(param.token.lexeme)) {
-                SoftError($"Parameter '{param.token.lexeme}' has already been defined", param.token);
+            if (!parameterNames.Add(param.token.Span)) {
+                SoftError($"Parameter '{param.token.Span.String()}' has already been defined", param.token);
             }
             parameters.Add(param.token);
-            DefineSymbol(new BindingSymbol(param.token, param.token.lexeme, false));
+            DefineSymbol(new BindingSymbol(param.token, param.token.Span, false));
         }
 
         Visit(node.body);
@@ -138,18 +138,18 @@ sealed class Analyser {
         switch (node.Kind) {
             case BindingKind.None: {
                 Visit(node.expression);
-                DefineSymbol(new BindingSymbol(node.token, node.token.lexeme, false));
+                DefineSymbol(new BindingSymbol(node.token, node.token.Span, false));
                 break;
             }
 
             case BindingKind.Mutable: {
                 Visit(node.expression);
-                DefineSymbol(new BindingSymbol(node.token, node.token.lexeme, true));
+                DefineSymbol(new BindingSymbol(node.token, node.token.Span, true));
                 break;
             }
 
             case BindingKind.Recursive: {
-                DefineSymbol(new BindingSymbol(node.token, node.token.lexeme, false));
+                DefineSymbol(new BindingSymbol(node.token, node.token.Span, false));
                 Visit(node.expression);
                 break;
             }
@@ -157,9 +157,9 @@ sealed class Analyser {
     }
 
     void VisitIdentifier(IdentifierNode node) {
-        var id = FindSymbol(node.token.lexeme);
+        Symbol? id = FindSymbol(node.token.Span);
         if (id == null) {
-            SoftError($"Identifier '{node.token.lexeme}' does not exist", node.token);
+            SoftError($"Identifier '{node.token.Span.String()}' does not exist", node.token);
         }
     }
 
@@ -192,11 +192,11 @@ sealed class Analyser {
     }
 
     void VisitRecordLiteral(RecordLiteralNode node) {
-        HashSet<string> properties = new();
+        HashSet<Span> properties = new();
 
         foreach (var (key, value) in node.Values) {
-            if (!properties.Add(key.token.lexeme)) {
-                SoftError($"Record literal already contains a field '{key.token.lexeme}'", key.token);
+            if (!properties.Add(key.token.Span)) {
+                SoftError($"Record literal already contains a field '{key.token.Span.String()}'", key.token);
             }
             Visit(value);
         }
@@ -213,7 +213,7 @@ sealed class Analyser {
         Visit(node.Start);
         Visit(node.To);
 
-        DefineSymbol(new BindingSymbol(null, "idx", false));
+        DefineSymbol(new BindingSymbol(null, Span.Idx, false));
         Visit(node.Body);
     }
 
@@ -231,9 +231,9 @@ sealed class Analyser {
         Visit(node.Expression);
 
         if (node.Lhs is IdentifierNode id) {
-            BindingSymbol sym = (BindingSymbol)FindSymbol(id.token.lexeme);
+            BindingSymbol sym = (BindingSymbol)FindSymbol(id.token.Span);
             if (!sym.Mutable) {
-                SoftError($"Binding '{id.token.lexeme}' is not mutable", node.token);
+                SoftError($"Binding '{id.token.Span.String()}' is not mutable", node.token);
             }
         }
     }

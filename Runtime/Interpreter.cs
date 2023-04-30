@@ -33,7 +33,7 @@ sealed class Interpreter {
         PushScope();
         _ = Visit(Unit.ast);
         
-        if (bindings[0].TryGetValue("main", out var main)) {
+        if (bindings[0].TryGetValue(Span.Main.ToString(), out var main)) {
             if (main is FunctionValue func) {
                 try {
                     _ = Visit(func.Value.body);
@@ -120,7 +120,7 @@ sealed class Interpreter {
 
         int i = 0;
         foreach (var path in node.Path) {
-            newPath += path.token.lexeme;
+            newPath += path.token.Span.String().ToString();
 
             if (i++ < node.Path.Length - 1) {
                 newPath += "/";
@@ -153,7 +153,7 @@ sealed class Interpreter {
 
     Value VisitExport(ExportNode node) {
         foreach (var export in node.Identifiers) {
-            string exportName = export.token.lexeme;
+            string exportName = export.token.Span.String().ToString();
             Unit.exports.Add(exportName, Visit(export));
         }
         return NilValue.The;
@@ -179,7 +179,7 @@ sealed class Interpreter {
 
             PushScope();
             for (int i = 0; i < func.Value.parameters.Length; ++i) {
-                DeclareBinding(func.Value.parameters[i].token.lexeme, Visit(node.arguments[i]));
+                DeclareBinding(func.Value.parameters[i].token.Span.ToString(), Visit(node.arguments[i]));
             }
 
             Value value = NilValue.The;
@@ -215,22 +215,22 @@ sealed class Interpreter {
     }
 
     Value VisitBinding(BindingNode node) {
-        string binding = node.token.lexeme;
         Value value = Visit(node.expression);
-        DeclareOrOverwriteBinding(binding, value);
+        DeclareOrOverwriteBinding(node.token.Span.ToString(), value);
 
         return value;
     }
 
-    Value VisitIdentifier(IdentifierNode node) => FindBinding(node.token.lexeme);
+    Value VisitIdentifier(IdentifierNode node) => FindBinding(node.token.Span.ToString());
 
     Value VisitLiteral(LiteralNode node) {
-        return node.token.kind switch {
-            TokenKind.Number => new NumberValue(double.Parse(node.token.lexeme)),
-            TokenKind.String => new StringValue(node.token.lexeme),
+        return node.token.Kind switch {
+            TokenKind.Number => new NumberValue(double.Parse(node.token.Span.String().ToString())),
+            TokenKind.String => new StringValue(node.token.Span.String().ToString()),
             TokenKind.True => new BoolValue(true),
             TokenKind.False => new BoolValue(false),
             TokenKind.Nil => NilValue.The,
+            _ => throw new UnreachableException("Literal"),
         };
     }
 
@@ -247,7 +247,7 @@ sealed class Interpreter {
         Dictionary<string, Value> values = new(node.Values.Length);
 
         foreach (var (key, item) in node.Values) {
-            values[key.token.lexeme] = Visit(item);
+            values[key.token.Span.String().ToString()] = Visit(item);
         }
         return new RecordValue(values);
     }
@@ -271,7 +271,7 @@ sealed class Interpreter {
         Value lhs = Visit(node.Lhs);
 
         if (lhs is RecordValue record) {
-            string property = node.Rhs.token.lexeme;
+            string property = node.Rhs.token.Span.String().ToString();
             if (record.Properties.TryGetValue(property, out var value)) {
                 return value;
             }
@@ -300,7 +300,7 @@ sealed class Interpreter {
             int toIdx = (int)t.Value;
 
             for (; index < toIdx; ++index) {
-                DeclareOrOverwriteBinding("idx", new NumberValue(index));
+                DeclareOrOverwriteBinding(Span.Idx.ToString(), new NumberValue(index));
                 Visit(node.Body);
             }
 
@@ -332,7 +332,7 @@ sealed class Interpreter {
         Value rhs = Visit(node.Expression);
 
         if (node.Lhs is IdentifierNode id) {
-            return SetBinding(id.token.lexeme, rhs);
+            return SetBinding(id.token.Span.ToString(), rhs);
         }
 
         throw new BluException("Unsupported item in assignment");
@@ -372,7 +372,7 @@ sealed class Interpreter {
         Value lhs = Visit(node.Lhs);
         Value rhs = Visit(node.Rhs);
 
-        return node.token.kind switch {
+        return node.token.Kind switch {
             TokenKind.EqualEq => lhs.Equal(rhs),
             TokenKind.NotEqual => lhs.NotEqual(rhs),
             _ => throw new BluException("Invalid equality operator"),
@@ -383,7 +383,7 @@ sealed class Interpreter {
         Value lhs = Visit(node.Lhs);
         Value rhs = Visit(node.Rhs);
 
-        return node.token.kind switch {
+        return node.token.Kind switch {
             TokenKind.Less => lhs.Less(rhs),
             TokenKind.LessEq => lhs.LessEq(rhs),
             TokenKind.Greater => lhs.Greater(rhs),
@@ -413,7 +413,7 @@ sealed class Interpreter {
             throw new BluException($"Expected type '{lhs.GetType()}' in binary op but received '{rhs.GetType()}'");
         }
 
-        return node.token.kind switch {
+        return node.token.Kind switch {
             TokenKind.Plus  => lhs.Add(rhs),
             TokenKind.Minus => lhs.Sub(rhs),
             TokenKind.Star  => lhs.Mul(rhs),
