@@ -108,6 +108,7 @@ sealed class Interpreter {
             ComparisonNode n => VisitComparison(n),
             PrependNode n => VisitPrepend(n),
             PipeNode n => VisitPipe(n),
+            ClassNode n => VisitClass(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -404,6 +405,35 @@ sealed class Interpreter {
     }
 
     Value VisitPipe(PipeNode node) => Visit(node.Rhs);
+
+    Value VisitClass(ClassNode node) {
+        Dictionary<string, Value> inner = new();
+
+        if (node.Composed != null) {
+            foreach (var compose in node.Composed) {
+                string itemName = compose.token.Span.ToString();
+                Value composeItem = FindBinding(itemName);
+
+                if (composeItem is RecordValue record) {
+                    Dictionary<string, Value> values = new(record.Properties);
+                    foreach (var (key, value) in values) {
+                        inner[key] = value;
+                    }
+                } else {
+                    throw new BluException($"Cannot compose with non-class item '{itemName}'");
+                }
+            }
+        }
+
+        PushScope();
+
+        foreach (var binding in node.Inner) {
+            inner[binding.token.Span.ToString()] = VisitBinding(binding);
+        }
+
+        PopScope();
+        return new RecordValue(inner);
+    }
 
     Value VisitBinaryOp(BinaryOpNode node) {
         Value lhs = Visit(node.lhs);

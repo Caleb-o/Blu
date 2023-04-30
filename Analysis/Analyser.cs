@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Blu;
 
 sealed class Analyser {
-    readonly List<List<Symbol>> symbolTable = new();
+    readonly List<List<BindingSymbol>> symbolTable = new();
     readonly CompilationUnit unit;
     bool hadError = false;
 
@@ -18,26 +18,31 @@ sealed class Analyser {
         return hadError;
     }
 
-    void PushScope() {
-        symbolTable.Add(new List<Symbol>());
-    }
+    void PushScope() => symbolTable.Add(new List<BindingSymbol>());
 
-    void PopScope() {
-        symbolTable.RemoveAt(symbolTable.Count - 1);
-    }
+    void PopScope() => symbolTable.RemoveAt(symbolTable.Count - 1);
 
     void SoftError(string message, Token token) {
         hadError = true;
-
-        Console.WriteLine($"Error occured: {message} in {this.unit.fileName} at {token.Line}:{token.Column}");
+        Console.WriteLine($"Error occured: {message} in {unit.fileName} at {token.Line}:{token.Column}");
     }
 
-    Symbol? FindSymbol(Span identifier) {
+    BindingSymbol? FindLocalSymbol(Span identifier) {
+        for (int j = symbolTable[symbolTable.Count - 1].Count - 1; j >= 0; --j) {
+            if (symbolTable[symbolTable.Count - 1][j].Identifier == identifier) {
+                return symbolTable[symbolTable.Count - 1][j];
+            }
+        }
+
+        return null;
+    }
+
+    BindingSymbol? FindSymbol(Span identifier) {
         for (int i = symbolTable.Count - 1; i >= 0; --i) {
             var table = symbolTable[i];
 
             for (int j = table.Count - 1; j >= 0; --j) {
-                if (table[j].identifier == identifier) {
+                if (table[j].Identifier == identifier) {
                     return table[j];
                 }
             }
@@ -45,7 +50,13 @@ sealed class Analyser {
 
         return null;
     }
-    void DefineSymbol(Symbol sym) {
+    void DefineSymbol(BindingSymbol sym) {
+        BindingSymbol? local = FindLocalSymbol(sym.Identifier);
+        if (local != null && local.Explicit) {
+            SoftError($"Cannot overwrite '{sym.Identifier}' in current scope, as it's marked as explicit", sym.Token);
+            return;
+        }
+
         symbolTable[symbolTable.Count - 1].Add(sym);
     }
 
@@ -76,6 +87,7 @@ sealed class Analyser {
             case ComparisonNode n:      VisitComparison(n); break;
             case PrependNode n:         VisitPrepend(n); break;
             case PipeNode n:            VisitPipe(n); break;
+            case ClassNode n:           VisitClass(n); break;
 
             // Ignore
             case ImportNode:
@@ -127,7 +139,7 @@ sealed class Analyser {
                 SoftError($"Parameter '{param.token.Span.String()}' has already been defined", param.token);
             }
             parameters.Add(param.token);
-            DefineSymbol(new BindingSymbol(param.token, param.token.Span, false));
+            DefineSymbol(new BindingSymbol(param.token, param.token.Span, true, false));
         }
 
         Visit(node.body);
@@ -138,18 +150,18 @@ sealed class Analyser {
         switch (node.Kind) {
             case BindingKind.None: {
                 Visit(node.expression);
-                DefineSymbol(new BindingSymbol(node.token, node.token.Span, false));
+                DefineSymbol(new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
                 break;
             }
 
             case BindingKind.Mutable: {
                 Visit(node.expression);
-                DefineSymbol(new BindingSymbol(node.token, node.token.Span, true));
+                DefineSymbol(new BindingSymbol(node.token, node.token.Span, node.Explicit, true));
                 break;
             }
 
             case BindingKind.Recursive: {
-                DefineSymbol(new BindingSymbol(node.token, node.token.Span, false));
+                DefineSymbol(new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
                 Visit(node.expression);
                 break;
             }
@@ -157,7 +169,7 @@ sealed class Analyser {
     }
 
     void VisitIdentifier(IdentifierNode node) {
-        Symbol? id = FindSymbol(node.token.Span);
+        BindingSymbol? id = FindSymbol(node.token.Span);
         if (id == null) {
             SoftError($"Identifier '{node.token.Span.String()}' does not exist", node.token);
         }
@@ -213,7 +225,7 @@ sealed class Analyser {
         Visit(node.Start);
         Visit(node.To);
 
-        DefineSymbol(new BindingSymbol(null, Span.Idx, false));
+        DefineSymbol(new BindingSymbol(null, Span.Idx, true, false));
         Visit(node.Body);
     }
 
@@ -283,5 +295,21 @@ sealed class Analyser {
         } else {
             SoftError("Right-hand side of a pipe must be a function call", node.Rhs.token);
         }
+    }
+
+    void VisitClass(ClassNode node) {
+        if (node.Composed != null) {
+            foreach (var compose in node.Composed) {
+                if (FindSymbol(compose.token.Span) == null) {
+                    SoftError($"Cannot compose with '{compose.token.Span}' as it does not exist", compose.token);
+                }
+            }
+        }
+
+        PushScope();
+        foreach (var n in node.Inner) {
+            Visit(n);
+        }
+        PopScope();
     }
 }

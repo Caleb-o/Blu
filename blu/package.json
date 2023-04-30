@@ -1,0 +1,25 @@
+{
+  "name": "blu",
+  "displayName": "Blu",
+  "description": "A functional language ",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.77.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "blu",
+      "aliases": ["Blu", "blu"],
+      "extensions": [".blu"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "blu",
+      "scopeName": "source.blu",
+      "path": "./syntaxes/blu.tmLanguage.json"
+    }]
+  }
+}

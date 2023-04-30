@@ -110,7 +110,7 @@ namespace Blu {
             Advance();
 
             int startColumn = column;
-            int ip = this.ip;
+            int startIp = ip;
 
             // FIXME: Allow escaped characters
             while (!IsAtEnd() && Peek() != end) {
@@ -123,7 +123,7 @@ namespace Blu {
             }
             Advance();
 
-            return MakeToken(TokenKind.String, startColumn, new Span(ip, this.ip, source));
+            return MakeToken(TokenKind.String, startColumn, new Span(startIp, ip - 1, source));
         }
 
         Token Digit() {
@@ -154,6 +154,8 @@ namespace Blu {
                 "return" => TokenKind.Return,
                 "mut" => TokenKind.Mutable,
                 "rec" => TokenKind.Rec,
+                "class" => TokenKind.Class,
+                "explicit" => TokenKind.Explicit,
                 
                 "or" => TokenKind.Or,
                 "and" => TokenKind.And,

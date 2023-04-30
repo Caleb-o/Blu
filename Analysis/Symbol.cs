@@ -1,22 +1,17 @@
 using System.Collections.Generic;
 
 namespace Blu {
-    abstract class Symbol {
-        public readonly Span identifier;
+    sealed class BindingSymbol {
+        public readonly Span Identifier;
         // Builtins will not have tokens
-        public readonly Token token;
+        public readonly Token Token;
 
-        public Symbol(Span identifier, Token token) {
-            this.identifier = identifier;
-            this.token = token;
-        }
-
-        public bool IsBuiltin() => token == null;
-    }
-
-    sealed class BindingSymbol : Symbol {
+        public readonly bool Explicit;
         public readonly bool Mutable;
-        public BindingSymbol(Token token, Span identifier, bool mutable) : base(identifier, token) {
+        public BindingSymbol(Token token, Span identifier, bool exp, bool mutable) {
+            this.Token = token;
+            this.Identifier = identifier;
+            this.Explicit = exp;
             this.Mutable = mutable;
         }
     }
