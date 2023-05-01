@@ -88,6 +88,7 @@ sealed class Analyser {
             case PipeNode n:                VisitPipe(n); break;
             case CloneNode n:               Visit(n.Expression); break;
             case EnvironmentOpenNode n:     VisitEnvironmentOpen(n); break;
+            case ObjectNode n:              VisitObject(n); break;
 
             // Ignore
             case ImportNode:
