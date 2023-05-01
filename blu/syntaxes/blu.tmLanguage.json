@@ -21,7 +21,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.blu",
-				"match": "\\b(if|then|else|for|fun|let|mut|rec|explicit|to|import|export|clone|print|len|true|false|object|return)\\b"
+				"match": "\\b(if|then|else|for|fun|nil|let|mut|rec|explicit|to|import|export|clone|print|len|true|false|object|return)\\b"
 			}]
 		},
 		"identifiers": {
