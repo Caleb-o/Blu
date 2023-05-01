@@ -128,7 +128,7 @@ sealed class Parser {
     AstNode Call() {
         AstNode node = Primary();
 
-        while (current.Kind.In(TokenKind.LParen, TokenKind.LSquare, TokenKind.Dot, TokenKind.Pipe)) {
+        while (current.Kind.In(TokenKind.LParen, TokenKind.LSquare, TokenKind.Dot, TokenKind.Pipe, TokenKind.DotLCurly)) {
             switch (current.Kind) {
                 case TokenKind.LParen:
                     node = FunctionCall(node);
@@ -140,6 +140,10 @@ sealed class Parser {
 
                 case TokenKind.Dot:
                     node = PropertyGet(node);
+                    break;
+
+                case TokenKind.DotLCurly:
+                    node = EnvironmentOpen(node);
                     break;
                 
                 case TokenKind.Pipe:
@@ -632,6 +636,19 @@ sealed class Parser {
         Consume(TokenKind.Identifier, "Expect identifier after '.'");
         
         return new PropertyGetNode(token, lhs, new IdentifierNode(identifier));
+    }
+
+    AstNode EnvironmentOpen(AstNode lhs) {
+        Token token = current;
+        ConsumeAny();
+
+        BodyNode body = new();
+
+        while (current.Kind != TokenKind.RCurly) {
+            Statement(body);
+        }
+        Consume(TokenKind.RCurly, "Expect '}' after body statements in environment");
+        return new EnvironmentOpenNode(token, lhs, body);
     }
 
     BodyNode Block() {

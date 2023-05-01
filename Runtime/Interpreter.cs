@@ -106,6 +106,7 @@ sealed class Interpreter {
             PipeNode n => VisitPipe(n),
             ObjectNode n => VisitObject(n),
             CloneNode n => VisitClone(n),
+            EnvironmentOpenNode n => VisitEnvironmentOpen(n),
             _ => throw new BluException($"Unknown node in interpreter '{node}'"),
         };
     }
@@ -259,6 +260,22 @@ sealed class Interpreter {
 
     Value VisitIdentifier(IdentifierNode node) => FindBinding(node.token.Span.ToString());
 
+    Value VisitBinaryOp(BinaryOpNode node) {
+        Value lhs = Visit(node.lhs);
+        Value rhs = Visit(node.rhs);
+
+        if (lhs.GetType() != rhs.GetType()) {
+            throw new BluException($"Expected type '{lhs.GetType()}' in binary op but received '{rhs.GetType()}'");
+        }
+
+        return node.token.Kind switch {
+            TokenKind.Plus  => lhs.Add(rhs),
+            TokenKind.Minus => lhs.Sub(rhs),
+            TokenKind.Star  => lhs.Mul(rhs),
+            TokenKind.Slash => lhs.Div(rhs),
+        };
+    }
+
     Value VisitLiteral(LiteralNode node) {
         return node.token.Kind switch {
             TokenKind.Number => new NumberValue(double.Parse(node.token.Span.String().ToString())),
@@ -372,7 +389,7 @@ sealed class Interpreter {
             Value oldValue = currentRecord.Properties[binding];
             currentRecord.Properties[binding] = rhs;
             return oldValue;
-        } 
+        }
 
         return node.Lhs switch {
             IdentifierNode => SetBinding(binding, rhs),
@@ -500,27 +517,26 @@ sealed class Interpreter {
     Value VisitClone(CloneNode node) {
         Value value = Visit(node.Expression);
         return value switch {
-            NumberValue n => n,
-            BoolValue n => n,
-            StringValue n => n,
             RecordValue n => n.Clone(),
-            _ => throw new BluException($"Cannot clone {value}"),
+            _ => value,
         };
     }
 
-    Value VisitBinaryOp(BinaryOpNode node) {
-        Value lhs = Visit(node.lhs);
-        Value rhs = Visit(node.rhs);
+    Value VisitEnvironmentOpen(EnvironmentOpenNode node) {
+        Value value = Visit(node.Lhs);
 
-        if (lhs.GetType() != rhs.GetType()) {
-            throw new BluException($"Expected type '{lhs.GetType()}' in binary op but received '{rhs.GetType()}'");
+        if (value is RecordValue record) {
+            PushScope();
+
+            foreach (var binding in record.Properties) {
+                DeclareBinding(binding.Key, binding.Value);
+            }
+
+            VisitBody(node.Inner);
+
+            PopScope();
+            return NilValue.The;
         }
-
-        return node.token.Kind switch {
-            TokenKind.Plus  => lhs.Add(rhs),
-            TokenKind.Minus => lhs.Sub(rhs),
-            TokenKind.Star  => lhs.Mul(rhs),
-            TokenKind.Slash => lhs.Div(rhs),
-        };
+        throw new BluException($"Cannot open non-record {value}");
     }
 }

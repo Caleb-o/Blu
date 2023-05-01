@@ -50,7 +50,10 @@ namespace Blu {
 
                 ':' => MakeCharToken(TokenKind.Colon),
                 ';' => MakeCharToken(TokenKind.Semicolon),
-                '.' => MatchingCharToken(TokenKind.Dot, (TokenKind.DotDot, '.')),
+                '.' => MatchingCharToken(TokenKind.Dot,
+                    (TokenKind.DotDot, '.'),
+                    (TokenKind.DotLCurly, '{')
+                ),
                 ',' => MakeCharToken(TokenKind.Comma),
 
                 '"' => String('"'),

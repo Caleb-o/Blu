@@ -71,33 +71,34 @@ sealed class Analyser {
 
     void Visit(AstNode node) {
         switch (node) {
-            case ProgramNode n:         VisitProgram(n); break;
-            case ExportNode n:          VisitExport(n); break;
-            case BodyNode n:            VisitBody(n, true); break;
-            case FunctionNode n:        VisitFunction(n); break;
-            case BindingNode n:         VisitBinding(n); break;
-            case IdentifierNode n:      VisitIdentifier(n); break;
-            case FunctionCallNode n:    VisitFunctionCall(n); break;
-            case ReturnNode n:          VisitReturn(n); break;
-            case PrintNode n:           VisitPrint(n); break;
-            case BinaryOpNode n:        VisitBinaryOp(n); break;
-            case UnaryOpNode n:         Visit(n.rhs); break;
-            case ListLiteralNode n:     VisitListLiteral(n); break;
-            case RecordLiteralNode n:   VisitRecordLiteral(n); break;
-            case IndexGetNode n:        VisitIndexGet(n); break;
-            case PropertyGetNode n:     VisitPropertyGet(n); break;
-            case LenNode n:             Visit(n.Expression); break;
-            case ForLoopNode n:         VisitForLoop(n); break;
-            case IfNode n:              VisitIf(n); break;
-            case AssignNode n:          VisitAssign(n); break;
-            case OrNode n:              VisitOr(n); break;
-            case AndNode n:             VisitAnd(n); break;
-            case EqualityNode n:        VisitEquality(n); break;
-            case ComparisonNode n:      VisitComparison(n); break;
-            case PrependNode n:         VisitPrepend(n); break;
-            case PipeNode n:            VisitPipe(n); break;
-            case ObjectNode n:          VisitObject(n); break;
-            case CloneNode n:           Visit(n.Expression); break;
+            case ProgramNode n:             VisitProgram(n); break;
+            case ExportNode n:              VisitExport(n); break;
+            case BodyNode n:                VisitBody(n, true); break;
+            case FunctionNode n:            VisitFunction(n); break;
+            case BindingNode n:             VisitBinding(n); break;
+            case IdentifierNode n:          VisitIdentifier(n); break;
+            case FunctionCallNode n:        VisitFunctionCall(n); break;
+            case ReturnNode n:              VisitReturn(n); break;
+            case PrintNode n:               VisitPrint(n); break;
+            case BinaryOpNode n:            VisitBinaryOp(n); break;
+            case UnaryOpNode n:             Visit(n.rhs); break;
+            case ListLiteralNode n:         VisitListLiteral(n); break;
+            case RecordLiteralNode n:       VisitRecordLiteral(n); break;
+            case IndexGetNode n:            VisitIndexGet(n); break;
+            case PropertyGetNode n:         VisitPropertyGet(n); break;
+            case LenNode n:                 Visit(n.Expression); break;
+            case ForLoopNode n:             VisitForLoop(n); break;
+            case IfNode n:                  VisitIf(n); break;
+            case AssignNode n:              VisitAssign(n); break;
+            case OrNode n:                  VisitOr(n); break;
+            case AndNode n:                 VisitAnd(n); break;
+            case EqualityNode n:            VisitEquality(n); break;
+            case ComparisonNode n:          VisitComparison(n); break;
+            case PrependNode n:             VisitPrepend(n); break;
+            case PipeNode n:                VisitPipe(n); break;
+            case ObjectNode n:              VisitObject(n); break;
+            case CloneNode n:               Visit(n.Expression); break;
+            case EnvironmentOpenNode n:     VisitEnvironmentOpen(n); break;
 
             // Ignore
             case ImportNode:
@@ -353,5 +354,11 @@ sealed class Analyser {
         PopScope();
 
         processing = last;
+    }
+
+    void VisitEnvironmentOpen(EnvironmentOpenNode node) {
+        Visit(node.Lhs);
+        // FIXME: We need to figure out how we can analyse the inner correctly
+        //        Might need to create environments so we can dig through an analyse fields etc
     }
 }
