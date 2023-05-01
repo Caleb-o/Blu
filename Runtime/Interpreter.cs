@@ -326,10 +326,10 @@ sealed class Interpreter {
             if (record.Properties.TryGetValue(property, out var value)) {
                 return value;
             }
-            throw new BluException($"Record does not contain property '{property}'");
+            throw new BluException($"Record '{node.Lhs.token.Span}' does not contain property '{property}'");
         }
 
-        throw new BluException("Could not access non-record");
+        throw new BluException($"Could not access non-record '{node.Lhs.token.Span}'");
     }
 
     Value VisitLen(LenNode node) {

@@ -367,11 +367,12 @@ sealed class Analyser {
         PushScope();
         Visit(node.Lhs);
 
-        Environment? env = environment.FindEnv(node.Lhs.token.Span.ToString());
-        // environment.DumpInner();
-        workingEnvironment.BringIntoScope(env);
+        // FIXME: We need to figure out the environment, from the leftmost to search for
+        //        Also need to get the objects name if assigning to a binding with a constructor
+        // Environment? env = environment.FindEnv(node.Lhs.token.Span.ToString());
+        // workingEnvironment.BringIntoScope(env);
 
-        VisitBody(node.Inner, true);
+        // VisitBody(node.Inner, true);
         PopScope();
 
         function = oldFunction;
