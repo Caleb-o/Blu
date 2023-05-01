@@ -1,20 +1,29 @@
 using System;
 using System.Collections.Generic;
 
-namespace Blu;
+namespace Blu.Analysis;
 
 sealed class Analyser {
+    enum FunctionType {
+        None, Function,
+    };
+
     enum Processing {
         None, Object,
     }
 
-    readonly List<List<BindingSymbol>> symbolTable = new();
     readonly CompilationUnit unit;
     bool hadError = false;
     Processing processing = Processing.None;
+    FunctionType function = FunctionType.None;
+
+    readonly Environment environment;
+    Environment workingEnvironment;
 
     public Analyser(CompilationUnit unit) {
         this.unit = unit;
+        this.environment = new("MAIN");
+        this.workingEnvironment = environment;
         PushScope();
     }
 
@@ -23,50 +32,31 @@ sealed class Analyser {
         return hadError;
     }
 
-    void PushScope() => symbolTable.Add(new List<BindingSymbol>());
+    void PushScope() => workingEnvironment.SymbolTable.Add(new List<BindingSymbol>());
 
-    void PopScope() => symbolTable.RemoveAt(symbolTable.Count - 1);
+    void PopScope() => workingEnvironment.SymbolTable.RemoveAt(workingEnvironment.SymbolTable.Count - 1);
 
-    void SoftError(string message, Token token) {
+    void PushEnvironment(string identifier) {
+        Environment env = new(identifier, workingEnvironment);
+        workingEnvironment.Inner.Add(env);
+        workingEnvironment = env;
+    }
+
+    void PopEnvironment() {
+        if (workingEnvironment.Parent == null) {
+            throw new BluException("Trying to pop into a null environment");
+        }
+
+        workingEnvironment = workingEnvironment.Parent;
+    }
+
+    public void SoftError(string message, Token token) {
         hadError = true;
         Console.WriteLine($"Error occured: {message} in {unit.fileName} at {token.Line}:{token.Column}");
     }
 
     void Warning(string message, Token token) {
         Console.WriteLine($"Warning: {message} in {unit.fileName} at {token.Line}:{token.Column}");
-    }
-
-    BindingSymbol? FindLocalSymbol(Span identifier) {
-        for (int j = symbolTable[symbolTable.Count - 1].Count - 1; j >= 0; --j) {
-            if (symbolTable[symbolTable.Count - 1][j].Identifier == identifier) {
-                return symbolTable[symbolTable.Count - 1][j];
-            }
-        }
-
-        return null;
-    }
-
-    BindingSymbol? FindSymbol(Span identifier) {
-        for (int i = symbolTable.Count - 1; i >= 0; --i) {
-            var table = symbolTable[i];
-
-            for (int j = table.Count - 1; j >= 0; --j) {
-                if (table[j].Identifier == identifier) {
-                    return table[j];
-                }
-            }
-        }
-
-        return null;
-    }
-    void DefineSymbol(BindingSymbol sym) {
-        BindingSymbol? local = FindLocalSymbol(sym.Identifier);
-        if (local != null && local.Explicit) {
-            SoftError($"Cannot overwrite '{sym.Identifier}' in current scope, as it's marked as explicit", sym.Token);
-            return;
-        }
-
-        symbolTable[symbolTable.Count - 1].Add(sym);
     }
 
     void Visit(AstNode node) {
@@ -96,7 +86,6 @@ sealed class Analyser {
             case ComparisonNode n:          VisitComparison(n); break;
             case PrependNode n:             VisitPrepend(n); break;
             case PipeNode n:                VisitPipe(n); break;
-            case ObjectNode n:              VisitObject(n); break;
             case CloneNode n:               Visit(n.Expression); break;
             case EnvironmentOpenNode n:     VisitEnvironmentOpen(n); break;
 
@@ -124,7 +113,7 @@ sealed class Analyser {
         foreach (var id in node.Identifiers) {
             Span export = id.token.Span;
 
-            if (FindSymbol(export) == null) {
+            if (workingEnvironment.FindSymbol(export) == null) {
                 SoftError($"Cannot export item '{export.String()}' which does not exist", id.token);
             }
             
@@ -145,6 +134,9 @@ sealed class Analyser {
     }
 
     void VisitFunction(FunctionNode node) {
+        FunctionType oldFunction = function;
+        function = FunctionType.Function;
+
         List<Token> parameters = new();
         HashSet<Span> parameterNames = new();
 
@@ -154,18 +146,30 @@ sealed class Analyser {
                 SoftError($"Parameter '{param.token.Span.String()}' has already been defined", param.token);
             }
             parameters.Add(param.token);
-            DefineSymbol(new BindingSymbol(param.token, param.token.Span, true, false));
+            workingEnvironment.DefineSymbol(this, new BindingSymbol(param.token, param.token.Span, true, false));
         }
 
         Visit(node.body);
         PopScope();
+
+        function = oldFunction;
     }
 
     void VisitBinding(BindingNode node) {
+        var visitExpr = () => {
+            if (node.Expression is ObjectNode obj) {
+                PushEnvironment(node.token.Span.ToString());
+                VisitObject(obj);
+                PopEnvironment();
+            } else {
+                Visit(node.Expression);
+            }
+        };
+
         switch (node.Kind) {
             case BindingKind.None: {
-                Visit(node.expression);
-                DefineSymbol(new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
+                visitExpr();
+                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
                 break;
             }
 
@@ -174,25 +178,25 @@ sealed class Analyser {
                     SoftError("Cannot use mutable and explicit on the same binding", node.token);
                 }
 
-                Visit(node.expression);
-                DefineSymbol(new BindingSymbol(node.token, node.token.Span, node.Explicit, true));
+                visitExpr();
+                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Explicit, true));
                 break;
             }
 
             case BindingKind.Recursive: {
-                DefineSymbol(new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
-                Visit(node.expression);
+                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
+                visitExpr();
                 break;
             }
         }
 
-        if (symbolTable.Count == 1 && node.token.Span.ToString() == "main" && !node.Explicit) {
+        if (workingEnvironment.SymbolTable.Count == 1 && node.token.Span.ToString() == "main" && !node.Explicit) {
             Warning("Main should be marked as explicit", node.token);
         }
     }
 
     void VisitIdentifier(IdentifierNode node) {
-        BindingSymbol? id = FindSymbol(node.token.Span);
+        BindingSymbol? id = workingEnvironment.FindSymbol(node.token.Span);
         if (id == null) {
             SoftError($"Identifier '{node.token.Span.String()}' does not exist", node.token);
         }
@@ -206,6 +210,10 @@ sealed class Analyser {
     }
 
     void VisitReturn(ReturnNode node) {
+        if (function != FunctionType.Function) {
+            SoftError("Cannot use return outside of functions", node.token);
+        }
+
         Utils.RunNonNull(node.rhs, (rhs) => Visit((AstNode)rhs));
     }
 
@@ -248,7 +256,7 @@ sealed class Analyser {
         Visit(node.Start);
         Visit(node.To);
 
-        DefineSymbol(new BindingSymbol(null, Span.Idx, true, false));
+        workingEnvironment.DefineSymbol(this, new BindingSymbol(null, Span.Idx, true, false));
         Visit(node.Body);
     }
 
@@ -266,7 +274,7 @@ sealed class Analyser {
         Visit(node.Expression);
 
         if (node.Lhs is IdentifierNode id) {
-            BindingSymbol sym = FindSymbol(id.token.Span);
+            BindingSymbol sym = workingEnvironment.FindSymbol(id.token.Span);
             if (sym == null) {
                 SoftError($"Binding '{id.token.Span.String()}' does not exist in any scope", id.token);
                 return;
@@ -328,21 +336,21 @@ sealed class Analyser {
         Processing last = processing;
         processing = Processing.Object;
 
-        PushScope();
+
         if (node.Parameters != null) {
             HashSet<string> parameters = new();
             foreach (var (compose, mutable) in node.Parameters) {
                 if (!parameters.Add(compose.token.Span.ToString())) {
                     Warning($"Record constructor already contains '{compose.token.Span}'", compose.token);
                 }
-                DefineSymbol(new BindingSymbol(compose.token, compose.token.Span, true, mutable));
+                workingEnvironment.DefineSymbol(this, new BindingSymbol(compose.token, compose.token.Span, true, mutable));
             }
         }
 
         if (node.Composed != null) {
             HashSet<string> composed = new();
             foreach (var compose in node.Composed) {
-                if (FindSymbol(compose.token.Span) == null) {
+                if (workingEnvironment.FindSymbol(compose.token.Span) == null) {
                     SoftError($"Cannot compose with '{compose.token.Span}' as it does not exist", compose.token);
                 }
 
@@ -355,14 +363,24 @@ sealed class Analyser {
         foreach (var n in node.Inner) {
             Visit(n);
         }
-        PopScope();
 
         processing = last;
     }
 
     void VisitEnvironmentOpen(EnvironmentOpenNode node) {
+        FunctionType oldFunction = function;
+        function = FunctionType.None;
+
         Visit(node.Lhs);
-        // FIXME: We need to figure out how we can analyse the inner correctly
-        //        Might need to create environments so we can dig through an analyse fields etc
+
+        PushScope();
+
+        Environment? env = environment.FindEnv(node.Lhs.token.Span.ToString());
+        workingEnvironment.BringIntoScope(env);
+
+        VisitBody(node.Inner, false);
+        PopScope();
+
+        function = oldFunction;
     }
 }

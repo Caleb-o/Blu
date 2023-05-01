@@ -173,7 +173,7 @@ sealed class Interpreter {
 
         if (lhs is FunctionValue func) {
             if (func.Value.parameters.Length != node.arguments.Length) {
-                throw new BluException($"Trying to call function with {node.arguments.Length} arguments, but expected {func.Value.parameters.Length}");
+                throw new BluException($"Trying to call function '{func.Value.token.Span}' with {node.arguments.Length} arguments, but expected {func.Value.parameters.Length}");
             }
 
             PushScope();
@@ -253,7 +253,7 @@ sealed class Interpreter {
     }
 
     Value VisitBinding(BindingNode node) {
-        Value value = Visit(node.expression);
+        Value value = Visit(node.Expression);
         DeclareOrOverwriteBinding(node.token.Span.ToString(), value);
         return value;
     }
