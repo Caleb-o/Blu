@@ -117,6 +117,10 @@ sealed class Analyser {
     void VisitExport(ExportNode node) {
         HashSet<Span> exported = new();
 
+        if (unit.isMainUnit) {
+            SoftError("Cannot export from main module", node.token);
+        }
+
         foreach (var id in node.Identifiers) {
             Span export = id.token.Span;
 

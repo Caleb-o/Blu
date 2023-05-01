@@ -4,8 +4,8 @@ using Blu.Runtime;
 namespace Blu;
 
 sealed class Program {
-    public static CompilationUnit CompileAndRun(string path) {
-        CompilationUnit unit = new Parser(path, true).Parse();
+    public static CompilationUnit CompileAndRun(string path, bool isMain) {
+        CompilationUnit unit = new Parser(path, isMain).Parse();
         if (!new Analyser(unit).Analyse()) {
             new Interpreter(unit).Run();
         }
@@ -19,7 +19,7 @@ sealed class Program {
         }
 
         try {
-            CompileAndRun(args[0]);
+            CompileAndRun(args[0], true);
         } catch (Exception e) when (e is LexerException ||
                                     e is ParserException ||
                                     e is AnalyserException ||

@@ -138,7 +138,7 @@ sealed class Interpreter {
         if (Path.Exists(newPath)) {
             CompilationUnit unit;
             currentPath = Path.GetDirectoryName(newPath);
-            unit = Program.CompileAndRun(newPath);
+            unit = Program.CompileAndRun(newPath, false);
             currentPath = oldPath;
 
             value = new RecordValue(null, unit.exports);
