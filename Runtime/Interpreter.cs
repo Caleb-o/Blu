@@ -535,7 +535,7 @@ sealed class Interpreter {
             VisitBody(node.Inner);
 
             PopScope();
-            return NilValue.The;
+            return record;
         }
         throw new BluException($"Cannot open non-record {value}");
     }

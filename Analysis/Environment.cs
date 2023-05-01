@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Blu.Analysis;
@@ -12,6 +13,35 @@ sealed class Environment {
     public Environment(string identifier, Environment? parent = null) {
         this.Identifier = identifier;
         this.Parent = parent;
+    }
+
+    public void AddOrReplace(Environment env) {
+        for (int i = 0; i < Inner.Count; ++i) {
+            if (Inner[i].Identifier == env.Identifier) {
+                Inner[i] = env;
+                return;
+            }
+        }
+
+        Inner.Add(env);
+    }
+
+    public void AddIfNone(Environment env) {
+        foreach (var inner in Inner) {
+            if (inner.Identifier == env.Identifier) {
+                return;
+            }
+        }
+
+        Inner.Add(env);
+    }
+
+    public void DumpInner() {
+        Console.WriteLine("=== ENV DUMP ===");
+        foreach (var inner in Inner) {
+            Console.WriteLine($"{Identifier} :: {inner.Identifier}");
+        }
+        Console.WriteLine();
     }
 
     public Environment? FindEnv(string identifier, bool lookupParent = true) {
@@ -51,7 +81,7 @@ sealed class Environment {
             return;
         }
 
-        SymbolTable[SymbolTable.Count - 1].Add(sym);
+        SymbolTable[^1].Add(sym);
     }
 
     public void BringIntoScope(Environment? env) {
@@ -60,9 +90,11 @@ sealed class Environment {
     }
 
     BindingSymbol? FindLocalSymbol(Span identifier) {
-        for (int j = SymbolTable[SymbolTable.Count - 1].Count - 1; j >= 0; --j) {
-            if (SymbolTable[SymbolTable.Count - 1][j].Identifier == identifier) {
-                return SymbolTable[SymbolTable.Count - 1][j];
+        if (SymbolTable.Count == 0) return null;
+
+        for (int j = SymbolTable[^1].Count - 1; j >= 0; --j) {
+            if (SymbolTable[^1][j].Identifier == identifier) {
+                return SymbolTable[^1][j];
             }
         }
 

@@ -36,9 +36,9 @@ sealed class Analyser {
 
     void PopScope() => workingEnvironment.SymbolTable.RemoveAt(workingEnvironment.SymbolTable.Count - 1);
 
-    void PushEnvironment(string identifier) {
+    void PushEnvironment(string identifier, bool overwrite = false) {
         Environment env = new(identifier, workingEnvironment);
-        workingEnvironment.Inner.Add(env);
+        ((Action<Environment>)(overwrite ? workingEnvironment.AddOrReplace : workingEnvironment.AddIfNone))(env);
         workingEnvironment = env;
     }
 
@@ -180,10 +180,6 @@ sealed class Analyser {
             }
 
             case BindingKind.Mutable: {
-                if (node.Explicit) {
-                    SoftError("Cannot use mutable and explicit on the same binding", node.token);
-                }
-
                 visitExpr();
                 workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Explicit, true));
                 break;
@@ -209,6 +205,10 @@ sealed class Analyser {
     }
 
     void VisitFunctionCall(FunctionCallNode node) {
+        if (node.lhs is ObjectNode) {
+            SoftError("Cannot call an object literal", node.token);
+        }
+
         Visit(node.lhs);
         foreach (var arg in node.arguments) {
             Visit(arg);
@@ -380,9 +380,10 @@ sealed class Analyser {
         Visit(node.Lhs);
 
         Environment? env = environment.FindEnv(node.Lhs.token.Span.ToString());
+        // environment.DumpInner();
         workingEnvironment.BringIntoScope(env);
 
-        VisitBody(node.Inner, false);
+        VisitBody(node.Inner, true);
         PopScope();
 
         function = oldFunction;
