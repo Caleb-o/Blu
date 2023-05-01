@@ -184,10 +184,10 @@ sealed class Interpreter {
             RecordValue? oldRecord = currentRecord;
 
             if (func.Caller != null) {
+                currentRecord = func.Caller;
                 foreach (var (id, innerValue) in func.Caller.Properties) {
                     DeclareBinding(id, innerValue);
                 }
-                currentRecord = func.Caller;
             }
 
             Value value = NilValue.The;
@@ -209,16 +209,24 @@ sealed class Interpreter {
                 }
 
                 PushScope();
-                Dictionary<string, Value> properties = new(record.Properties);
-                RecordValue newRec = new(record.Base, properties);
-                DeclareBinding("self", newRec);
+                Dictionary<string, Value> properties = new();
+
+                // Cloning the original properties
+                foreach (var (binding, value) in record.Properties) {
+                    properties[binding] = value;
+                }
 
                 for (int i = 0; i < record.Base?.Parameters.Length; ++i) {
                     string binding = record.Base?.Parameters[i].Item1.token.Span.ToString();
                     properties[binding] = Visit(node.arguments[i]);
                 }
 
+                foreach (var prop in record.Base?.Inner) {
+                    properties[prop.token.Span.ToString()] = Visit(prop);
+                }
+
                 PopScope();
+                RecordValue newRec = new(record.Base, properties);
 
                 foreach (var (_, value) in properties) {
                     if (value is FunctionValue f) {
@@ -455,16 +463,12 @@ sealed class Interpreter {
     Value VisitPipe(PipeNode node) => Visit(node.Rhs);
 
     Value VisitObject(ObjectNode node) {
-        Dictionary<string, Value> inner = new();
-
         PushScope();
-        RecordValue record = new(node, inner);
         
         RecordValue? oldRecord = currentRecord;
-        currentRecord = record;
+        Dictionary<string, Value> inner = new();
+        currentRecord = new(node, inner);
         
-        DeclareBinding("self", record);
-
         if (node.Parameters != null) {
             for (int i = 0; i < node.Parameters.Length; ++i) {
                 string binding = node.Parameters[i].Item1.token.Span.ToString();
@@ -495,11 +499,12 @@ sealed class Interpreter {
 
         foreach (var (_, value) in inner) {
             if (value is FunctionValue func) {
-                func.Caller = record;
+                func.Caller = currentRecord;
             }
         }
 
         PopScope();
+        RecordValue record = currentRecord;
         currentRecord = oldRecord;
         return record;
     }
