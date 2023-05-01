@@ -88,7 +88,12 @@ sealed class Analyser {
             case PipeNode n:                VisitPipe(n); break;
             case CloneNode n:               Visit(n.Expression); break;
             case EnvironmentOpenNode n:     VisitEnvironmentOpen(n); break;
-            case ObjectNode n:              VisitObject(n); break;
+            case ObjectNode n: {
+                PushScope();
+                VisitObject(n);
+                PopScope();
+                break;
+            }
 
             // Ignore
             case ImportNode:
@@ -337,7 +342,6 @@ sealed class Analyser {
         Processing last = processing;
         processing = Processing.Object;
 
-
         if (node.Parameters != null) {
             HashSet<string> parameters = new();
             foreach (var (compose, mutable) in node.Parameters) {
@@ -372,9 +376,8 @@ sealed class Analyser {
         FunctionType oldFunction = function;
         function = FunctionType.None;
 
-        Visit(node.Lhs);
-
         PushScope();
+        Visit(node.Lhs);
 
         Environment? env = environment.FindEnv(node.Lhs.token.Span.ToString());
         workingEnvironment.BringIntoScope(env);
