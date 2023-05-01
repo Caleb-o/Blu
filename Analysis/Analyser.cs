@@ -73,7 +73,6 @@ sealed class Analyser {
             case BinaryOpNode n:            VisitBinaryOp(n); break;
             case UnaryOpNode n:             Visit(n.rhs); break;
             case ListLiteralNode n:         VisitListLiteral(n); break;
-            case RecordLiteralNode n:       VisitRecordLiteral(n); break;
             case IndexGetNode n:            VisitIndexGet(n); break;
             case PropertyGetNode n:         VisitPropertyGet(n); break;
             case LenNode n:                 Visit(n.Expression); break;
@@ -237,17 +236,6 @@ sealed class Analyser {
     void VisitListLiteral(ListLiteralNode node) {
         foreach (var n in node.Expressions) {
             Visit(n);
-        }
-    }
-
-    void VisitRecordLiteral(RecordLiteralNode node) {
-        HashSet<Span> properties = new();
-
-        foreach (var (key, value) in node.Values) {
-            if (!properties.Add(key.token.Span)) {
-                SoftError($"Record literal already contains a field '{key.token.Span.String()}'", key.token);
-            }
-            Visit(value);
         }
     }
 

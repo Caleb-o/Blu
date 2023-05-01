@@ -91,7 +91,6 @@ sealed class Interpreter {
             BinaryOpNode n => VisitBinaryOp(n),
             LiteralNode n => VisitLiteral(n),
             ListLiteralNode n => VisitListLiteral(n),
-            RecordLiteralNode n => VisitRecordLiteral(n),
             IndexGetNode n => VisitIndexGet(n),
             PropertyGetNode n => VisitPropertyGet(n),
             LenNode n => VisitLen(n),
@@ -294,15 +293,6 @@ sealed class Interpreter {
         }
 
         return new ListValue(values);
-    }
-
-    Value VisitRecordLiteral(RecordLiteralNode node) {
-        Dictionary<string, Value> values = new(node.Values.Length);
-
-        foreach (var (key, item) in node.Values) {
-            values[key.token.Span.String().ToString()] = Visit(item);
-        }
-        return new RecordValue(null, values);
     }
 
     Value VisitIndexGet(IndexGetNode node) {

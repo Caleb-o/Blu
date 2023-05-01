@@ -111,9 +111,6 @@ sealed class Parser {
             case TokenKind.LSquare:
                 return ListLiteral();
 
-            case TokenKind.LCurly:
-                return RecordLiteral();
-
             case TokenKind.Import:
                 return Import();
 
@@ -544,32 +541,6 @@ sealed class Parser {
 
         Consume(TokenKind.RSquare, "Expect ']' after list literal");
         return new ListLiteralNode(token, expressions.ToArray());
-    }
-
-    RecordLiteralNode RecordLiteral() {
-        Token token = current;
-        ConsumeAny();
-
-        List<(IdentifierNode, AstNode)> values = new();
-
-        if (current.Kind == TokenKind.Identifier) {
-            var collect = () => {
-                IdentifierNode identifier = new(current);
-                ConsumeAny();
-                Consume(TokenKind.Colon, "Expect ':' after identifier in record");
-                return (identifier, Expression());
-            };
-
-            values.Add(collect());
-
-            while (current.Kind == TokenKind.Comma) {
-                ConsumeAny();
-                values.Add(collect());
-            }
-        }
-        Consume(TokenKind.RCurly, "Expect '}' after record literal");
-
-        return new RecordLiteralNode(token, values.ToArray());
     }
 
     ImportNode Import() {
