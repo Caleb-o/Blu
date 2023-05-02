@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Blu.Analysis;
 using Blu.Runtime;
 
@@ -20,7 +21,7 @@ sealed class Program {
         }
 
         try {
-            CompileAndRun(args[0], true);
+            CompileAndRun(Path.GetFullPath(args[0]), true);
         } catch (Exception e) when (e is LexerException ||
                                     e is ParserException ||
                                     e is AnalyserException ||
