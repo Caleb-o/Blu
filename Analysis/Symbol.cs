@@ -5,12 +5,12 @@ sealed class BindingSymbol {
     // Builtins will not have tokens
     public readonly Token Token;
 
-    public readonly bool Explicit;
+    public readonly bool Final;
     public readonly bool Mutable;
-    public BindingSymbol(Token token, Span identifier, bool exp, bool mutable) {
+    public BindingSymbol(Token token, Span identifier, bool final, bool mutable) {
         this.Token = token;
         this.Identifier = identifier;
-        this.Explicit = exp;
+        this.Final = final;
         this.Mutable = mutable;
     }
 }

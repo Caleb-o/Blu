@@ -36,12 +36,15 @@ sealed class Environment {
         Inner.Add(env);
     }
 
-    public void DumpInner() {
-        Console.WriteLine("=== ENV DUMP ===");
-        foreach (var inner in Inner) {
-            Console.WriteLine($"{Identifier} :: {inner.Identifier}");
+    public void DumpInner(int depth = 0) {
+        if (depth == 0) {
+            Console.WriteLine("=== ENV DUMP ===");
         }
-        Console.WriteLine();
+
+        foreach (var inner in Inner) {
+            Console.WriteLine($"{new string(' ', depth * 2)}{Identifier} :: {inner.Identifier}");
+            inner.DumpInner(depth + 1);
+        }
     }
 
     public Environment? FindEnv(string identifier, bool lookupParent = true) {
@@ -60,7 +63,7 @@ sealed class Environment {
         return lookupParent ? Parent?.FindEnv(identifier) : null;
     }
 
-    public BindingSymbol? FindSymbol(Span identifier) {
+    public BindingSymbol? FindSymbol(Span identifier, bool visitInner = true) {
         for (int i = SymbolTable.Count - 1; i >= 0; --i) {
             var table = SymbolTable[i];
 
@@ -71,12 +74,19 @@ sealed class Environment {
             }
         }
 
-        return Parent?.FindSymbol(identifier);
+        if (visitInner) {
+            foreach (var inner in Inner) {
+                var sym = inner.FindSymbol(identifier, false);
+                if (sym != null) return sym;
+            }
+        }
+
+        return Parent?.FindSymbol(identifier, visitInner);
     }
 
     public void DefineSymbol(Analyser analyser, BindingSymbol sym) {
         BindingSymbol? local = FindLocalSymbol(sym.Identifier);
-        if (local != null && local.Explicit) {
+        if (local != null && local.Final) {
             analyser.SoftError($"Cannot overwrite '{sym.Identifier}' in current scope, as it's marked as explicit", sym.Token);
             return;
         }

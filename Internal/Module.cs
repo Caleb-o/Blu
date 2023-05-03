@@ -4,7 +4,7 @@ namespace Blu.Internal;
 
 sealed class Module {
     public readonly string Identifier;
-    readonly Dictionary<string, Function> Functions = new();
+    public readonly Dictionary<string, Function> Functions = new();
 
     public Module(string identifier) {
         this.Identifier = identifier;
@@ -17,7 +17,4 @@ sealed class Module {
             }
         }
     }
-
-    public bool HasFunction(string identifier) => Functions.ContainsKey(identifier);
-    public Function? GetFunction(string identifier) => Functions.GetValueOrDefault(identifier);
 }

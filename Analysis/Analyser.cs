@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using Blu.Internal;
+
 namespace Blu.Analysis;
 
 sealed class Analyser {
@@ -28,8 +30,28 @@ sealed class Analyser {
     }
 
     public bool Analyse() {
+        RegisterBuiltins();
         VisitProgram(unit.ast);
         return hadError;
+    }
+
+    BindingSymbol ArtificialBinding(string identifier) {
+        Span span = new(0, identifier.Length, identifier);
+        return new BindingSymbol(new Token(TokenKind.Identifier, 1, 1, span), span, true, false);
+    }
+
+    void RegisterBuiltins() {
+        workingEnvironment.DefineSymbol(this, ArtificialBinding("builtin"));
+        PushEnvironment("builtin");
+
+        foreach (var (id, _) in Builtins.Modules) {
+            workingEnvironment.DefineSymbol(this, ArtificialBinding(id));
+
+            PushEnvironment(id);
+            PopEnvironment();
+        }
+
+        PopEnvironment();
     }
 
     void PushScope() => workingEnvironment.SymbolTable.Add(new List<BindingSymbol>());

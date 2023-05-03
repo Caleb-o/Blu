@@ -128,6 +128,29 @@ sealed class FunctionValue : Value {
     public BoolValue NotEqual(Value rhs) => throw new BluException("Cannot use operation on function");
 }
 
+sealed class NativeFunctionValue : Value {
+    public readonly Internal.Function Func;
+    public RecordValue? Caller;
+
+    public NativeFunctionValue(Internal.Function func) {
+        this.Func = func;
+    }
+
+    public override string ToString() => $"nativefunc<func>";
+
+    public Value Add(Value rhs) => throw new BluException("Cannot use operations on native functions");
+    public Value Sub(Value rhs) => throw new BluException("Cannot use operations on native functions");
+    public Value Mul(Value rhs) => throw new BluException("Cannot use operations on native functions");
+    public Value Div(Value rhs) => throw new BluException("Cannot use operations on native functions");
+
+    public BoolValue Less(Value rhs) => throw new BluException("Cannot use operation on native function");
+    public BoolValue LessEq(Value rhs) => throw new BluException("Cannot use operation on native function");
+    public BoolValue Greater(Value rhs) => throw new BluException("Cannot use operation on native function");
+    public BoolValue GreaterEq(Value rhs) => throw new BluException("Cannot use operation on native function");
+    public BoolValue Equal(Value rhs) => throw new BluException("Cannot use operation on native function");
+    public BoolValue NotEqual(Value rhs) => throw new BluException("Cannot use operation on native function");
+}
+
 sealed class ListValue : Value {
     public readonly Value[] Values;
 
@@ -218,4 +241,29 @@ sealed class RecordValue : Value {
     public BoolValue GreaterEq(Value rhs) => new(Properties.Count >= ((RecordValue)rhs).Properties.Count);
     public BoolValue Equal(Value rhs) => new(Properties == ((RecordValue)rhs).Properties);
     public BoolValue NotEqual(Value rhs) => new(Properties != ((RecordValue)rhs).Properties);
+}
+
+sealed class NativeValue : Value {
+
+    public readonly object Value;
+
+    public NativeValue(object value) {
+        this.Value = value;
+    }
+
+    public override string ToString() => $"native<Value>";
+
+    public Value Add(Value rhs) => throw new BluException("Cannot use operations on NativeValue");
+    public Value Sub(Value rhs) => throw new BluException("Cannot use operations on NativeValue");
+    public Value Mul(Value rhs) => throw new BluException("Cannot use operations on NativeValue");
+    public Value Div(Value rhs) => throw new BluException("Cannot use operations on NativeValue");
+
+    public BoolValue Less(Value rhs) => throw new BluException("Cannot use operation on NativeValue");
+    public BoolValue LessEq(Value rhs) => throw new BluException("Cannot use operation on NativeValue");
+    public BoolValue Greater(Value rhs) => throw new BluException("Cannot use operation on NativeValue");
+    public BoolValue GreaterEq(Value rhs) => throw new BluException("Cannot use operation on NativeValue");
+
+    // TODO
+    public BoolValue Equal(Value rhs) => throw new BluException("Cannot use operation on NativeValue");
+    public BoolValue NotEqual(Value rhs) => throw new BluException("Cannot use operation on NativeValue");
 }

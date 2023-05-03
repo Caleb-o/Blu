@@ -46,13 +46,16 @@ sealed class Interpreter {
 
     public void Run() {
         PushScope();
+
+        RegisterBuiltins();
+
         try {
             _ = Visit(Unit.ast);
             
             if (bindings[0].TryGetValue(Span.Main.ToString(), out var main)) {
                 if (main is FunctionValue func) {
                     try {
-                        AddFrame("main", null);
+                        PushFrame("main", null);
                         _ = Visit(func.Value.body);
                         PopFrame();
                     } catch (ReturnEx) {}
@@ -64,6 +67,23 @@ sealed class Interpreter {
         }
 
         PopScope();
+    }
+
+    void RegisterBuiltins() {
+        Dictionary<string, Value> builtinValues = new();
+        RecordValue builtin = new(null, builtinValues);
+
+        DeclareBinding("builtin", builtin);
+
+        foreach (var (id, mod) in Internal.Builtins.Modules) {
+            Dictionary<string, Value> recordValues = new();
+            RecordValue record = new(null, recordValues);
+            builtinValues.Add(id, record);
+
+            foreach (var (fid, func) in mod.Functions) {
+                recordValues.Add(fid, new NativeFunctionValue(func));
+            }
+        }
     }
 
     void DumpStackTrace() {
@@ -102,7 +122,7 @@ sealed class Interpreter {
     void DeclareOrOverwriteBinding(string binding, Value value) =>
         bindings[bindings.Count - 1][binding] = value;
 
-    void AddFrame(string identifier, (string, Value)[]? parameters) {
+    void PushFrame(string identifier, (string, Value)[]? parameters) {
         StackFrame frame = new(TopFrame, identifier, parameters);
         TopFrame = frame;
     }
@@ -223,86 +243,111 @@ sealed class Interpreter {
     Value VisitFunctionCall(FunctionCallNode node) {
         Value lhs = Visit(node.lhs);
 
-        if (lhs is FunctionValue func) {
-            if (func.Value.parameters.Length != node.arguments.Length) {
-                throw new BluException($"Trying to call function '{func.Value.token.Span}' with {node.arguments.Length} arguments, but expected {func.Value.parameters.Length}");
-            }
-
-            (string, Value)[]? parameters = null;
-
-            PushScope();
-            if (func.Value.parameters.Length > 0) {
-                parameters = new (string, Value)[func.Value.parameters.Length];
-
-                for (int i = 0; i < func.Value.parameters.Length; ++i) {
-                    string binding = func.Value.parameters[i].token.Span.ToString();
-                    Value arg = Visit(node.arguments[i]);
-
-                    parameters[i] = (binding, arg);
-
-                    DeclareBinding(binding, arg);
+        switch (lhs) {
+            case FunctionValue func: {
+                if (func.Value.parameters.Length != node.arguments.Length) {
+                    throw new BluException($"Trying to call function '{func.Value.token.Span}' with {node.arguments.Length} arguments, but expected {func.Value.parameters.Length}");
                 }
-            }
-            
-            AddFrame(func.Value.token.Span.ToString(), parameters);
-            // Bring all record properties into scope
-            RecordValue? oldRecord = currentRecord;
 
-            if (func.Caller != null) {
-                currentRecord = func.Caller;
-                foreach (var (id, innerValue) in func.Caller.Properties) {
-                    DeclareBinding(id, innerValue);
-                }
-            }
-
-            Value value = NilValue.The;
-
-            try {
-                _ = Visit(func.Value.body);
-            } catch (ReturnEx ret) {
-                value = ret.value;
-            }
-
-            PopFrame();
-            PopScope();
-            currentRecord = oldRecord;
-
-            return value;
-        } else if (lhs is RecordValue record) {
-            if (record.Base?.Parameters != null) {
-                if (record.Base?.Parameters?.Length != node.arguments.Length) {
-                    throw new BluException($"Record constructor received {node.arguments.Length} arguments, but expected {record.Base?.Parameters?.Length}");
-                }
+                (string, Value)[]? parameters = null;
 
                 PushScope();
-                Dictionary<string, Value> properties = new();
+                if (func.Value.parameters.Length > 0) {
+                    parameters = new (string, Value)[func.Value.parameters.Length];
 
-                // Cloning the original properties
-                foreach (var (binding, value) in record.Properties) {
-                    properties[binding] = value;
+                    for (int i = 0; i < func.Value.parameters.Length; ++i) {
+                        string binding = func.Value.parameters[i].token.Span.ToString();
+                        Value arg = Visit(node.arguments[i]);
+
+                        parameters[i] = (binding, arg);
+
+                        DeclareBinding(binding, arg);
+                    }
                 }
+                
+                PushFrame(func.Value.token.Span.ToString(), parameters);
+                // Bring all record properties into scope
+                RecordValue? oldRecord = currentRecord;
 
-                for (int i = 0; i < record.Base?.Parameters.Length; ++i) {
-                    string binding = record.Base?.Parameters[i].Item1.token.Span.ToString();
-                    properties[binding] = Visit(node.arguments[i]);
-                }
-
-                foreach (var prop in record.Base?.Inner) {
-                    properties[prop.token.Span.ToString()] = Visit(prop);
-                }
-
-                PopScope();
-                RecordValue newRec = new(record.Base, properties);
-
-                foreach (var (_, value) in properties) {
-                    if (value is FunctionValue f) {
-                        f.Caller = newRec;
+                if (func.Caller != null) {
+                    currentRecord = func.Caller;
+                    foreach (var (id, innerValue) in func.Caller.Properties) {
+                        DeclareBinding(id, innerValue);
                     }
                 }
 
-                return newRec;
-            } else {
-                return record.Clone();
+                Value value = NilValue.The;
+
+                try {
+                    _ = Visit(func.Value.body);
+                } catch (ReturnEx ret) {
+                    value = ret.value;
+                }
+
+                PopFrame();
+                PopScope();
+                currentRecord = oldRecord;
+
+                return value;
+            }
+
+            case RecordValue record: {
+                if (record.Base?.Parameters != null) {
+                    if (record.Base?.Parameters?.Length != node.arguments.Length) {
+                        throw new BluException($"Record constructor received {node.arguments.Length} arguments, but expected {record.Base?.Parameters?.Length}");
+                    }
+
+                    PushScope();
+                    Dictionary<string, Value> properties = new();
+
+                    // Cloning the original properties
+                    foreach (var (binding, value) in record.Properties) {
+                        properties[binding] = value;
+                    }
+
+                    for (int i = 0; i < record.Base?.Parameters.Length; ++i) {
+                        string binding = record.Base?.Parameters[i].Item1.token.Span.ToString();
+                        properties[binding] = Visit(node.arguments[i]);
+                    }
+
+                    foreach (var prop in record.Base?.Inner) {
+                        properties[prop.token.Span.ToString()] = Visit(prop);
+                    }
+
+                    PopScope();
+                    RecordValue newRec = new(record.Base, properties);
+
+                    foreach (var (_, value) in properties) {
+                        if (value is FunctionValue f) {
+                            f.Caller = newRec;
+                        }
+                    }
+
+                    return newRec;
+                } else {
+                    return record.Clone();
+                }
+            }
+
+            case NativeFunctionValue native: {
+                if ((native.Func.Parameters?.Length ?? 0) != node.arguments.Length) {
+                    throw new BluException($"Trying to call function '{native.Func.Identifier}' with {node.arguments.Length} arguments, but expected {native.Func.Parameters?.Length ?? 0}");
+                }
+
+                Value[] args = new Value[node.arguments.Length];
+                (string, Value)[] parameters = new (string, Value)[node.arguments.Length];
+                for (int i = 0; i < args.Length; ++i) {
+                    Value value = Visit(node.arguments[i]);
+
+                    parameters[i] = (native.Func.Parameters[i], value);
+                    args[i] = value;
+                }
+
+                PushFrame(native.Func.Identifier, parameters);
+                Value ret = native.Func.Func(this, args);
+                PopFrame();
+
+                return ret;
             }
         }
 
