@@ -495,6 +495,10 @@ sealed class Interpreter {
         Value lhs = Visit(node.Lhs);
         Value rhs = Visit(node.Rhs);
 
+        if (lhs.GetType() != rhs.GetType()) {
+            return BoolValue.False;
+        }
+
         return node.token.Kind switch {
             TokenKind.EqualEq => lhs.Equal(rhs),
             TokenKind.NotEqual => lhs.NotEqual(rhs),
@@ -505,6 +509,10 @@ sealed class Interpreter {
     Value VisitComparison(ComparisonNode node) {
         Value lhs = Visit(node.Lhs);
         Value rhs = Visit(node.Rhs);
+
+        if (lhs.GetType() != rhs.GetType()) {
+            return BoolValue.False;
+        }
 
         return node.token.Kind switch {
             TokenKind.Less => lhs.Less(rhs),
