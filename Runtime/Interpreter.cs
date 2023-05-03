@@ -14,6 +14,20 @@ sealed class Interpreter {
     string currentPath;
     RecordValue? currentRecord;
 
+    sealed class StackFrame {
+        public readonly StackFrame? Parent;
+        public readonly string Identifier;
+        public readonly (string, Value)[]? Parameters;
+
+        public StackFrame(StackFrame? parent, string identifier, (string, Value)[]? parameters) {
+            this.Parent = parent;
+            this.Identifier = identifier;
+            this.Parameters = parameters;
+        }
+    }
+
+    StackFrame TopFrame = new(null, "<script>", null);
+
     public Interpreter(CompilationUnit unit) {
         this.Unit = unit;
         this.currentPath = Path.GetDirectoryName(unit.fileName);
@@ -32,17 +46,41 @@ sealed class Interpreter {
 
     public void Run() {
         PushScope();
-        _ = Visit(Unit.ast);
-        
-        if (bindings[0].TryGetValue(Span.Main.ToString(), out var main)) {
-            if (main is FunctionValue func) {
-                try {
-                    _ = Visit(func.Value.body);
-                } catch (ReturnEx) {}
+        try {
+            _ = Visit(Unit.ast);
+            
+            if (bindings[0].TryGetValue(Span.Main.ToString(), out var main)) {
+                if (main is FunctionValue func) {
+                    try {
+                        AddFrame("main", null);
+                        _ = Visit(func.Value.body);
+                        PopFrame();
+                    } catch (ReturnEx) {}
+                }
             }
+        } catch (BluException) {
+            DumpStackTrace();
         }
 
         PopScope();
+    }
+
+    void DumpStackTrace() {
+        Console.WriteLine("=== Stack Trace ===");
+        StackFrame? top = TopFrame;
+        while (top != null) {
+            Console.Write($"to {top.Identifier}(");
+
+            for (int i = 0; i < top.Parameters?.Length; ++i) {
+                Console.Write($"{top.Parameters[i].Item1}:{top.Parameters[i].Item2}");
+
+                if (i < top.Parameters?.Length - 1) {
+                    Console.Write(", ");
+                }
+            }
+            Console.WriteLine(')');
+            top = top.Parent;
+        }
     }
 
     Value SetBinding(string binding, Value value) {
@@ -62,6 +100,18 @@ sealed class Interpreter {
 
     void DeclareOrOverwriteBinding(string binding, Value value) =>
         bindings[bindings.Count - 1][binding] = value;
+
+    void AddFrame(string identifier, (string, Value)[]? parameters) {
+        StackFrame frame = new(TopFrame, identifier, parameters);
+        TopFrame = frame;
+    }
+
+    void PopFrame() {
+        if (TopFrame.Parent == null) {
+            throw new BluException("Top frame has an invalid parent frame");
+        }
+        TopFrame = TopFrame.Parent;
+    }
 
     void PushScope() => bindings.Add(new Dictionary<string, Value>());
     void PopScope() => bindings.RemoveAt(bindings.Count - 1);
@@ -175,11 +225,23 @@ sealed class Interpreter {
                 throw new BluException($"Trying to call function '{func.Value.token.Span}' with {node.arguments.Length} arguments, but expected {func.Value.parameters.Length}");
             }
 
+            (string, Value)[]? parameters = null;
+
             PushScope();
-            for (int i = 0; i < func.Value.parameters.Length; ++i) {
-                DeclareBinding(func.Value.parameters[i].token.Span.ToString(), Visit(node.arguments[i]));
+            if (func.Value.parameters.Length > 0) {
+                parameters = new (string, Value)[func.Value.parameters.Length];
+
+                for (int i = 0; i < func.Value.parameters.Length; ++i) {
+                    string binding = func.Value.parameters[i].token.Span.ToString();
+                    Value arg = Visit(node.arguments[i]);
+
+                    parameters[i] = (binding, arg);
+
+                    DeclareBinding(binding, arg);
+                }
             }
             
+            AddFrame(func.Value.token.Span.ToString(), parameters);
             // Bring all record properties into scope
             RecordValue? oldRecord = currentRecord;
 
@@ -198,6 +260,7 @@ sealed class Interpreter {
                 value = ret.value;
             }
 
+            PopFrame();
             PopScope();
             currentRecord = oldRecord;
 
