@@ -1,7 +1,7 @@
-let rec fib n =
+let final rec fib n =
     if n <= 1
     then n
     else fib(n - 2) + fib(n - 1);
 
-let main () =
+let final main () =
     print 'Fib: ', fib(18);

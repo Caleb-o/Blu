@@ -1,13 +1,13 @@
-let explicit main () = {
-  let explicit generate_list v = {
+let final main () = {
+  let final generate_list v = {
     let mut result = [];
     for 0 to v = result <- result + [idx];
     return result;
   };
 
-  let explicit iter f l = for 0 to len l = f(l[idx]);
+  let final iter f l = for 0 to len l = f(l[idx]);
 
-  let explicit rec fib n =
+  let final rec fib n =
     if n <= 1
     then n
     else fib(n - 2) + fib(n - 1);
