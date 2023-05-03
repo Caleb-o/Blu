@@ -5,12 +5,12 @@ enum BindingKind {
 }
 
 sealed class BindingNode : AstNode {
-    public readonly bool Explicit;
+    public readonly bool Final;
     public readonly BindingKind Kind;
     public readonly AstNode Expression;
 
-    public BindingNode(Token token, bool exp, BindingKind Kind, AstNode expression) : base(token) {
-        this.Explicit = exp;
+    public BindingNode(Token token, bool final, BindingKind Kind, AstNode expression) : base(token) {
+        this.Final = final;
         this.Kind = Kind;
         this.Expression = expression;
     }

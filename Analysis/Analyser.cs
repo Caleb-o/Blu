@@ -174,24 +174,24 @@ sealed class Analyser {
         switch (node.Kind) {
             case BindingKind.None: {
                 visitExpr();
-                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
+                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Final, false));
                 break;
             }
 
             case BindingKind.Mutable: {
                 visitExpr();
-                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Explicit, true));
+                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Final, true));
                 break;
             }
 
             case BindingKind.Recursive: {
-                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Explicit, false));
+                workingEnvironment.DefineSymbol(this, new BindingSymbol(node.token, node.token.Span, node.Final, false));
                 visitExpr();
                 break;
             }
         }
 
-        if (workingEnvironment.SymbolTable.Count == 1 && node.token.Span.ToString() == "main" && !node.Explicit) {
+        if (workingEnvironment.SymbolTable.Count == 1 && node.token.Span.ToString() == "main" && !node.Final) {
             Warning("Main should be marked as explicit", node.token);
         }
     }

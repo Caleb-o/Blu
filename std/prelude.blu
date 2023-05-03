@@ -1,9 +1,9 @@
-let explicit map f l = {
+let final map f l = {
   let mut result = [];
   for 0 to len l = result <- result + [f(l[idx])];
   return result;
 };
 
-let explicit iter f l = for 0 to len l = f(l[idx]);
+let final iter f l = for 0 to len l = f(l[idx]);
 
 export map, iter;

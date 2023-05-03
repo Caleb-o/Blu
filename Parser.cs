@@ -330,10 +330,10 @@ sealed class Parser {
     BindingNode BindingDeclaration() {
         ConsumeAny();
 
-        bool exp = false;
-        if (current.Kind == TokenKind.Explicit) {
+        bool final = false;
+        if (current.Kind == TokenKind.Final) {
             ConsumeAny();
-            exp = true;
+            final = true;
         }
 
         BindingKind kind = BindingKind.None;
@@ -349,10 +349,10 @@ sealed class Parser {
         Consume(TokenKind.Identifier, "Expect identifier after let");
 
         if (current.Kind.In(TokenKind.Identifier, TokenKind.LParen)) {
-            return FunctionDefinitionFP(identifier, exp, kind);
+            return FunctionDefinitionFP(identifier, final, kind);
         } else {
             Consume(TokenKind.Equal, "Expect '=' after identifier");
-            return new BindingNode(identifier, exp, kind, Expression());
+            return new BindingNode(identifier, final, kind, Expression());
         }
     }
 
@@ -496,14 +496,14 @@ sealed class Parser {
         return parameterList;
     }
 
-    BindingNode FunctionDefinitionFP(Token identifier, bool exp, BindingKind kind) {
+    BindingNode FunctionDefinitionFP(Token identifier, bool final, BindingKind kind) {
         List<IdentifierNode> parameters = GetParameterList();
 
         Consume(TokenKind.Equal, "Expect '=' after parameter list");
 
         return new BindingNode(
             identifier,
-            exp,
+            final,
             kind,
             new FunctionNode(identifier, parameters.ToArray(), current.Kind == TokenKind.LCurly
                 ? Block()

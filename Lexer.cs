@@ -158,7 +158,7 @@ namespace Blu {
                 "mut" => TokenKind.Mutable,
                 "rec" => TokenKind.Rec,
                 "object" => TokenKind.Object,
-                "explicit" => TokenKind.Explicit,
+                "final" => TokenKind.Final,
                 
                 "or" => TokenKind.Or,
                 "and" => TokenKind.And,
