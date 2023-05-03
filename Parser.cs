@@ -547,11 +547,21 @@ sealed class Parser {
         Token token = current;
         ConsumeAny();
 
-        bool fromBase = false;
-        if (current.Kind == TokenKind.At) {
-            ConsumeAny();
-            fromBase = true;
-            Consume(TokenKind.Dot, "Expect '.' after '@' in import");
+        ImportKind kind = ImportKind.Normal;
+        switch (current.Kind) {
+            case TokenKind.At: {
+                ConsumeAny();
+                Consume(TokenKind.Dot, "Expect '.' after '@' in import");
+                kind = ImportKind.Base;
+                break;
+            }
+
+            case TokenKind.Star: {
+                ConsumeAny();
+                Consume(TokenKind.Dot, "Expect '.' after '*' in import");
+                kind = ImportKind.Std;
+                break;
+            }
         }
 
         List<IdentifierNode> path = new() { new IdentifierNode(current) };
@@ -563,7 +573,7 @@ sealed class Parser {
             Consume(TokenKind.Identifier, "Expect identifier in import path");
         }
 
-        return new ImportNode(token, fromBase, path.ToArray());
+        return new ImportNode(token, kind, path.ToArray());
     }
 
     PipeNode Pipe(AstNode node) {

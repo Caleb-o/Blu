@@ -58,7 +58,8 @@ sealed class Interpreter {
                     } catch (ReturnEx) {}
                 }
             }
-        } catch (BluException) {
+        } catch (BluException be) {
+            Console.WriteLine(be.Message);
             DumpStackTrace();
         }
 
@@ -175,9 +176,11 @@ sealed class Interpreter {
             }
         }
 
-        newPath = node.FromBase
-            ? $"{basePath}/{newPath}.blu"
-            : $"{currentPath}/{newPath}.blu";
+        newPath = node.Kind switch {
+            ImportKind.Base => $"{basePath}/{newPath}.blu",
+            ImportKind.Normal => $"{currentPath}/{newPath}.blu",
+            ImportKind.Std => $"{AppDomain.CurrentDomain.BaseDirectory}std/{newPath}.blu",
+        };
 
         if (Interpreter.CompiledFiles.TryGetValue(newPath, out var value)) {
             Console.WriteLine($"Found value at: '{newPath}'");
