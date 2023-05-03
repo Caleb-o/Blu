@@ -418,12 +418,20 @@ sealed class Interpreter {
         Value lhs = Visit(node.Lhs);
         Value index = Visit(node.Index);
 
-        if (lhs is ListValue list && index is NumberValue number) {
+        if (index is NumberValue number) {
             int numIndex = (int)number.Value;
-            if (numIndex < 0 || numIndex >= list.Values.Length) {
-                throw new BluException($"Index '{numIndex}' out of range of '{list.Values.Length}'");
+
+            if (lhs is ListValue list) {
+                if (numIndex < 0 || numIndex >= list.Values.Length) {
+                    throw new BluException($"Index '{numIndex}' out of range of '{list.Values.Length}'");
+                }
+                return list.Values[numIndex];
+            } else if (lhs is StringValue str) {
+                if (numIndex < 0 || numIndex >= str.Value.Length) {
+                    throw new BluException($"Index '{numIndex}' out of range of '{str.Value.Length}'");
+                }
+                return new CharValue(str.Value[numIndex]);
             }
-            return list.Values[numIndex];
         }
 
         throw new BluException("Could not index non-list or use non-number index");

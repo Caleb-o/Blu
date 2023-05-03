@@ -83,6 +83,28 @@ sealed class BoolValue : Value {
     public BoolValue NotEqual(Value rhs) => new(Value != ((BoolValue)rhs).Value);
 }
 
+sealed class CharValue : Value {
+    public readonly char Value;
+
+    public CharValue(char value) {
+        Value = value;
+    }
+
+    public override string ToString() => $"{Value}";
+
+    public Value Add(Value rhs) => new StringValue($"{Value}{((CharValue)rhs).Value}");
+    public Value Sub(Value rhs) => throw new BluException("Cannot use operations on char");
+    public Value Mul(Value rhs) => throw new BluException("Cannot use operations on char");
+    public Value Div(Value rhs) => throw new BluException("Cannot use operations on char");
+
+    public BoolValue Less(Value rhs) => new((int)Value < (int)((CharValue)rhs).Value);
+    public BoolValue LessEq(Value rhs) => new((int)Value <= (int)((CharValue)rhs).Value);
+    public BoolValue Greater(Value rhs) => new((int)Value > (int)((CharValue)rhs).Value);
+    public BoolValue GreaterEq(Value rhs) => new((int)Value >= (int)((CharValue)rhs).Value);
+    public BoolValue Equal(Value rhs) => new(Value == ((CharValue)rhs).Value);
+    public BoolValue NotEqual(Value rhs) => new(Value != ((CharValue)rhs).Value);
+}
+
 sealed class StringValue : Value {
     public readonly string Value;
 
