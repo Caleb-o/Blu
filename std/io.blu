@@ -1,0 +1,9 @@
+let final File = object(path, mode, handle) {
+  let final write content = builtin.io.write_file(handle, content);
+  let final read () = builtin.io.read_file(handle);
+  let final close () = builtin.io.close(handle);
+};
+
+let final open_file path mode = File(path, mode, builtin.io.open(path, mode));
+
+export File, open_file;

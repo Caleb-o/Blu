@@ -87,7 +87,7 @@ sealed class Interpreter {
     }
 
     void DumpStackTrace() {
-        Console.WriteLine("=== Stack Trace ===");
+        Console.WriteLine($"=== Stack Trace :: '{Unit.fileName}' ===");
         StackFrame? top = TopFrame;
         while (top != null) {
             Console.Write($"to {top.Identifier}(");
@@ -140,8 +140,19 @@ sealed class Interpreter {
     Value? FindBinding(string binding) {
         for (int i = bindings.Count - 1; i >= 0; --i) {
             if (bindings[i].ContainsKey(binding)) {
-                return bindings[i][binding];
+                Value value = bindings[i][binding];
+
+                if (value is RecordValue record) {
+                    currentRecord = record;
+                }
+
+                return value;
             }
+        }
+
+        // Search in current record
+        if (currentRecord.Properties.TryGetValue(binding, out var val)) {
+            return val;
         }
 
         return null;
@@ -351,7 +362,7 @@ sealed class Interpreter {
             }
         }
 
-        throw new BluException("Trying to call non-function value");
+        throw new BluException($"Trying to call non-function value '{node.token.Span}':{lhs}");
     }
 
     Value VisitReturn(ReturnNode node) =>

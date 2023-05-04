@@ -77,5 +77,8 @@ sealed class Token {
         this.Span = span;
     }
 
+    public override string ToString() =>
+        $"Token {{ kind: {Kind}, line: {Line}, column: {Column}, span: {Span} }}";
+
     public ReadOnlySpan<char> String() => Span.String();
 }
