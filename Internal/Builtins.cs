@@ -1,6 +1,7 @@
 using System;
-using System.Text;
 using System.IO;
+using System.Text;
+using System.Diagnostics;
 using System.Collections.Generic;
 using Blu.Runtime;
 
@@ -82,6 +83,57 @@ static class Builtins {
             CreateFunction("time_s", null, (i, args) => {
                 ExpectArgsOrThrow("time_s", args, 0);
                 return new NumberValue(DateTime.Now.Second);
+            }),
+            // Call command
+            CreateFunction("new_proc", new string[] {"name", "use_shell", "args"}, (i, args) => {
+                ExpectArgsOrThrow("new_proc", args, 3);
+
+                string identifier = ExpectOrThrowV<StringValue>("new_proc", args[0]).Value;
+                bool useShell = ExpectOrThrowV<BoolValue>("new_proc", args[1]).Value;
+                string proc_args = string.Join(" ",ExpectOrThrowVL<string, StringValue>("new_proc", args[2]));
+
+                Process proc = new() {
+                    StartInfo = new() {
+                        UseShellExecute = useShell,
+                        CreateNoWindow = true,
+                        FileName = identifier,
+                        Arguments = proc_args,
+                        RedirectStandardInput = true,
+                    },
+                };
+
+                return new NativeValue(proc);
+            }),
+            CreateFunction("start_proc", new string[] {"proc"}, (i, args) => {
+                ExpectArgsOrThrow("start_proc", args, 1);
+                try {
+                    return new BoolValue(ExpectOrThrowN<Process>("start_proc", args[0]).Start());
+
+                } catch (Exception) {
+                    return BoolValue.False;
+                }
+            }),
+            CreateFunction("write_proc", new string[] {"proc", "content"}, (i, args) => {
+                ExpectArgsOrThrow("write_proc", args, 2);
+
+                Process proc = ExpectOrThrowN<Process>("write_proc", args[0]);
+                string content = ExpectOrThrowV<StringValue>("write_proc", args[1]).Value;
+
+                try {
+                    using StreamWriter writer = proc.StandardInput;
+                    writer.Write(content);
+                    writer.Flush();
+                } catch (Exception) {}
+
+                return NilValue.The;
+            }),
+            CreateFunction("wait_exit_proc", new string[] {"proc"}, (i, args) => {
+                ExpectArgsOrThrow("wait_exit_proc", args, 1);
+                Process proc = ExpectOrThrowN<Process>("wait_exit_proc", args[0]);
+                try {
+                    proc.WaitForExit();
+                } catch (Exception) {}
+                return NilValue.The;
             })
         );
 
@@ -169,6 +221,25 @@ static class Builtins {
             throw new BluException($"Incorrect type provided in call to '{callsite}'");
         }
         return (T)value;
+    }
+
+    static T[] ExpectOrThrowVL<T, U>(string callsite, Value value) {
+        if (value is not ListValue) {
+            throw new BluException($"Incorrect type provided in call to '{callsite}', expected list");
+        }
+
+        ListValue list = (ListValue)value;
+
+        T[] l = new T[list.Values.Length];
+
+        for (int i = 0; i < list.Values.Length; ++i) {
+            if (list.Values[i] is not U) {
+                throw new BluException($"Incorrect type provided in call to '{callsite}'");
+            }
+            l[i] = (T)list.Values[i].GetValue();
+        }
+
+        return l;
     }
 
     static T ExpectOrThrowN<T>(string callsite, Value value) {

@@ -1,0 +1,9 @@
+let final Process = object(filename, args, handle) {
+  let final start () = builtin.system.start_proc(handle);
+  let final write content = builtin.system.write_proc(handle, content);
+  let final wait_for_exit () = builtin.system.wait_exit_proc(handle);
+};
+
+let final new_process filename use_shell args = Process(filename, args, builtin.system.new_proc(filename, use_shell, args));
+
+export Process, new_process;

@@ -5,6 +5,8 @@ using System.Collections.Generic;
 namespace Blu.Runtime;
 
 interface Value {
+    object GetValue();
+
     Value Add(Value rhs);
     Value Sub(Value rhs);
     Value Mul(Value rhs);
@@ -22,6 +24,8 @@ sealed class NilValue : Value {
     public readonly static NilValue The = new();
 
     public override string ToString() => "nil";
+
+    public object GetValue() => The;
 
     public Value Add(Value rhs) => throw new BluException("Cannot use operations on nil");
     public Value Sub(Value rhs) => throw new BluException("Cannot use operations on nil");
@@ -42,6 +46,8 @@ sealed class NumberValue : Value {
     public NumberValue(double value) {
         Value = value;
     }
+
+    public object GetValue() => Value;
 
     public override string ToString() => Value.ToString();
 
@@ -68,6 +74,8 @@ sealed class BoolValue : Value {
         Value = value;
     }
 
+    public object GetValue() => Value;
+
     public override string ToString() => Value.ToString();
 
     public Value Add(Value rhs) => throw new BluException("Cannot use operations on bool");
@@ -90,6 +98,8 @@ sealed class CharValue : Value {
         Value = value;
     }
 
+    public object GetValue() => Value;
+
     public override string ToString() => $"{Value}";
 
     public Value Add(Value rhs) => new StringValue($"{Value}{((CharValue)rhs).Value}");
@@ -111,6 +121,8 @@ sealed class StringValue : Value {
     public StringValue(string value) {
         Value = value;
     }
+
+    public object GetValue() => Value;
 
     public override string ToString() => Value;
 
@@ -135,6 +147,8 @@ sealed class FunctionValue : Value {
         Value = value;
     }
 
+    public object GetValue() => Value;
+
     public override string ToString() => "func";
 
     public Value Add(Value rhs) => throw new BluException("Cannot use operations on functions");
@@ -158,6 +172,8 @@ sealed class NativeFunctionValue : Value {
         this.Func = func;
     }
 
+    public object GetValue() => Func;
+
     public override string ToString() => $"nativefunc<func>";
 
     public Value Add(Value rhs) => throw new BluException("Cannot use operations on native functions");
@@ -179,6 +195,8 @@ sealed class ListValue : Value {
     public ListValue(Value[] values) {
         Values = values;
     }
+
+    public object GetValue() => Values;
 
     public override string ToString() {
         StringBuilder sb = new();
@@ -233,6 +251,8 @@ sealed class RecordValue : Value {
         this.Properties = properties;
     }
 
+    public object GetValue() => Properties;
+
     public void SetParent(RecordValue? parent) => Parent = parent;
 
     public bool TryGetValue(string identifier, out Value value) {
@@ -283,6 +303,8 @@ sealed class NativeValue : Value {
     public NativeValue(object value) {
         this.Value = value;
     }
+
+    public object GetValue() => Value;
 
     public override string ToString() => $"native<Value>";
 
