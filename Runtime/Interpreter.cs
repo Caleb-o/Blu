@@ -143,6 +143,7 @@ sealed class Interpreter {
                 Value value = bindings[i][binding];
 
                 if (value is RecordValue record) {
+                    record.SetParent(currentRecord);
                     currentRecord = record;
                 }
 
@@ -151,7 +152,7 @@ sealed class Interpreter {
         }
 
         // Search in current record
-        if (currentRecord.Properties.TryGetValue(binding, out var val)) {
+        if (currentRecord.TryGetValue(binding, out var val)) {
             return val;
         }
 
@@ -281,6 +282,7 @@ sealed class Interpreter {
                 RecordValue? oldRecord = currentRecord;
 
                 if (func.Caller != null) {
+                    func.Caller.SetParent(currentRecord);
                     currentRecord = func.Caller;
                     foreach (var (id, innerValue) in func.Caller.Properties) {
                         DeclareBinding(id, innerValue);
@@ -298,11 +300,15 @@ sealed class Interpreter {
                 PopFrame();
                 PopScope();
                 currentRecord = oldRecord;
+                currentRecord.SetParent(null);
 
                 return value;
             }
 
             case RecordValue record: {
+                record.SetParent(currentRecord);
+                currentRecord = record;
+
                 if (record.Base?.Parameters != null) {
                     if (record.Base?.Parameters?.Length != node.arguments.Length) {
                         throw new BluException($"Record constructor received {node.arguments.Length} arguments, but expected {record.Base?.Parameters?.Length}");
@@ -454,6 +460,11 @@ sealed class Interpreter {
         if (lhs is RecordValue record) {
             string property = node.Rhs.token.Span.String().ToString();
             if (record.Properties.TryGetValue(property, out var value)) {
+                if (value is RecordValue rec) {
+                    rec.SetParent(currentRecord);
+                    currentRecord = rec;
+                }
+
                 return value;
             }
             throw new BluException($"Record '{node.Lhs.token.Span}' does not contain property '{property}'");
@@ -533,15 +544,15 @@ sealed class Interpreter {
 
             Value rhs = Visit(node.Rhs);
             if (rhs is BoolValue r) {
-                if (l.Value) { return l; }
+                if (r.Value) { return r; }
             } else {
-                throw new BluException("Can only use or on to booleans");
+                throw new BluException($"Can only use or on two booleans but got {lhs} and {rhs}");
             }
 
             return BoolValue.False;
         }
 
-        throw new BluException("Can only use or on to booleans");
+        throw new BluException($"Can only use or on two booleans but got {lhs}");
     }
 
     Value VisitAnd(AndNode node) {
@@ -552,7 +563,7 @@ sealed class Interpreter {
             return new BoolValue(l.Value && r.Value);
         }
 
-        throw new BluException("Can only use and on to booleans");
+        throw new BluException($"Can only use and on to booleans but got {lhs} and {rhs}");
     }
 
     Value VisitEquality(EqualityNode node) {
@@ -605,7 +616,9 @@ sealed class Interpreter {
         
         RecordValue? oldRecord = currentRecord;
         Dictionary<string, Value> inner = new();
+        RecordValue parent = currentRecord;
         currentRecord = new(node, inner);
+        currentRecord.SetParent(parent);
         
         if (node.Parameters != null) {
             for (int i = 0; i < node.Parameters.Length; ++i) {
@@ -643,7 +656,9 @@ sealed class Interpreter {
 
         PopScope();
         RecordValue record = currentRecord;
+        record.SetParent(null);
         currentRecord = oldRecord;
+        currentRecord?.SetParent(null);
         return record;
     }
 

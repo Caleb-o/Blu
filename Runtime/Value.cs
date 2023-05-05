@@ -224,12 +224,23 @@ sealed class ListValue : Value {
 }
 
 sealed class RecordValue : Value {
+    public RecordValue? Parent { get; private set; }
     public readonly ObjectNode? Base;
     public readonly Dictionary<string, Value> Properties;
 
     public RecordValue(ObjectNode? b, Dictionary<string, Value> properties) {
         this.Base = b;
         this.Properties = properties;
+    }
+
+    public void SetParent(RecordValue? parent) => Parent = parent;
+
+    public bool TryGetValue(string identifier, out Value value) {
+        if (Properties.TryGetValue(identifier, out value)) {
+            return true;
+        }
+
+        return Parent?.TryGetValue(identifier, out value) ?? false;
     }
 
     public RecordValue Clone() =>

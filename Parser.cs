@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+using System;
 using System.IO;
+using System.Collections.Generic;
 
 namespace Blu;
 
@@ -216,7 +217,7 @@ sealed class Parser {
         while (current.Kind.In(TokenKind.EqualEq, TokenKind.NotEqual)) {
             Token token = current;
             ConsumeAny();
-            node = new EqualityNode(token, node, Expression());
+            node = new EqualityNode(token, node, Comparison());
         }
 
         return node;
@@ -228,7 +229,7 @@ sealed class Parser {
         while (current.Kind == TokenKind.And) {
             Token token = current;
             ConsumeAny();
-            node = new OrNode(token, node, Expression());
+            node = new OrNode(token, node, Equality());
         }
 
         return node;
@@ -240,7 +241,7 @@ sealed class Parser {
         while (current.Kind == TokenKind.Or) {
             Token token = current;
             ConsumeAny();
-            node = new OrNode(token, node, Expression());
+            node = new OrNode(token, node, And());
         }
 
         return node;
