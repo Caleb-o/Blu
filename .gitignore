@@ -1,7 +1,7 @@
 .vscode/
 tmp/
 temp/
-*.txt
+*.blu
 
 experimenting.*
 *.blucs

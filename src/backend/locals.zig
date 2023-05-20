@@ -5,9 +5,12 @@ const Allocator = std.mem.Allocator;
 const root = @import("root");
 const Token = root.lexer.Token;
 
+const BindingKind = root.ast.BindingKind;
+
 pub const Local = struct {
     // Use of token to report error location
     identifier: Token,
+    kind: BindingKind,
     initialised: bool,
     depth: i32,
 
@@ -16,7 +19,7 @@ pub const Local = struct {
     pub fn create() Self {
         return .{
             .name = undefined,
-            .kind = .Local,
+            .kind = BindingKind.None,
             .initialised = false,
             .depth = -1,
         };
@@ -32,7 +35,7 @@ pub const Local = struct {
                 .column = 1,
                 .line = 1,
             },
-            .kind = .Local,
+            .kind = BindingKind.None,
             .depth = 0,
         };
     }
@@ -53,6 +56,10 @@ pub const LocalTable = struct {
 
     pub fn deinit(self: *Self) void {
         self.locals.deinit();
+    }
+
+    pub inline fn last(self: *Self) u8 {
+        return @intCast(u8, self.locals.items.len);
     }
 
     pub inline fn append(self: *Self, local: Local) !void {

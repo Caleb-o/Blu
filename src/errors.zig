@@ -13,6 +13,8 @@ pub const CompilerError = error{
     TooManyLocals,
     TooManyArguments,
     UndefinedLocal,
+    UnknownLocal,
+    SymbolDefined,
 } || std.mem.Allocator.Error || std.fmt.ParseFloatError;
 
 pub fn errorWithToken(token: *Token, where: []const u8, msg: []const u8) void {

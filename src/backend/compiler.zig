@@ -121,12 +121,6 @@ pub const Compiler = struct {
         return std.mem.eql(u8, a.lexeme, b.lexeme);
     }
 
-    fn lastLocal(self: *Self) ?Local {
-        if (self.localTable.locals.items.len == 0) return null;
-        const count = self.localTable.locals.items.len - 1;
-        return self.localTable.locals.items[count];
-    }
-
     fn resolveLocal(self: *Self, name: *Token) i32 {
         if (self.scopeComp.locals == 0) return -1;
         const count: usize = self.localTable.locals.items.len;
@@ -146,7 +140,26 @@ pub const Compiler = struct {
         return -1;
     }
 
-    fn addLocal(self: *Self, name: *Token) !void {
+    fn resolveInScope(self: *Self, name: *Token) i32 {
+        if (self.scopeComp.locals == 0) return -1;
+        const count: usize = self.localTable.locals.items.len;
+        const lookingScope = self.scopeComp.depth;
+
+        var i: usize = 0;
+        while (i < self.scopeComp.locals) : (i += 1) {
+            var local = self.localTable.locals.items[count - 1 - i];
+            if (local.depth < lookingScope) {
+                break;
+            }
+
+            if (identifiersEqual(name, &local.identifier)) {
+                return @intCast(i32, i);
+            }
+        }
+        return -1;
+    }
+
+    fn addLocal(self: *Self, name: *Token, kind: ast.BindingKind) !void {
         if (self.scopeComp.locals == std.math.maxInt(u8)) {
             errors.errorWithToken(name, "Compiler", "Too many variables in function.");
             return;
@@ -154,15 +167,11 @@ pub const Compiler = struct {
 
         try self.localTable.locals.append(.{
             .identifier = name.*,
+            .kind = kind,
             .initialised = false,
-            .depth = -1,
+            .depth = self.scopeComp.depth,
         });
         self.scopeComp.locals += 1;
-    }
-
-    inline fn markScope(self: *Self) void {
-        const idx = self.localTable.locals.items.len - 1;
-        self.localTable.locals.items[idx].depth = self.scopeComp.depth;
     }
 
     inline fn markInitialised(self: *Self) void {
@@ -179,7 +188,7 @@ pub const Compiler = struct {
         _ = self.vm.globals.set(string, Value.fromNil());
     }
 
-    fn declareVariable(self: *Self, name: *Token) !void {
+    fn declareVariable(self: *Self, name: *Token, kind: ast.BindingKind) !void {
         const count = self.localTable.locals.items.len;
 
         var i: usize = 0;
@@ -194,7 +203,7 @@ pub const Compiler = struct {
             }
         }
 
-        try self.addLocal(name);
+        try self.addLocal(name, kind);
     }
 
     // ====== CHUNK & EMITTERS
@@ -257,19 +266,36 @@ pub const Compiler = struct {
             .assignment => |n| try self.assignment(n),
 
             .parameterList => |n| try self.parameterList(n),
-            .functionDef => |n| try self.functionDef(n),
+            .functionDef => unreachable,
             .functionCall => |n| try self.functionCall(n),
             .expressionStmt => |n| try self.expressionStatement(n),
-            else => {
-                std.debug.print("UNIMPLEMENTED: '{s}'\n", .{@tagName(node)});
-                unreachable;
-            },
+
+            else => std.debug.panic("UNIMPLEMENTED: '{s}'\n", .{@tagName(node)}),
         }
     }
 
     fn letBinding(self: *Self, node: *ast.LetBinding) !void {
+        try self.visit(node.rhs);
+
+        // Global
         const exists = self.resolveLocal(&node.token);
-        _ = exists;
+        if (exists != -1) {
+            errors.errorWithToken(&node.token, "Compiler", "");
+            return CompilerError.SymbolDefined;
+        }
+
+        // Create and initialise the variable
+        try self.declareVariable(&node.token, node.kind);
+        self.markInitialised();
+
+        if (self.scopeComp.depth == 0) {
+            // Global
+            const location = try self.identifierConstant(&node.token);
+            try self.emitOpByte(.SetGlobal, location);
+        } else {
+            // Local
+            try self.emitOpByte(.SetLocal, self.localTable.last());
+        }
     }
 
     fn literal(self: *Self, node: *ast.Literal) !void {
@@ -358,30 +384,8 @@ pub const Compiler = struct {
 
         for (node.list.items) |*param| {
             const p = param.asIdentifier();
-            try self.declareVariable(&p.token);
+            try self.declareVariable(&p.token, ast.BindingKind.None);
         }
-    }
-
-    fn functionDef(self: *Self, node: *ast.FunctionDef) !void {
-        var comp = try self.newScopeCompiler(.Function);
-        try self.setCompiler(&comp, node.identifier.lexeme);
-        self.beginScope();
-
-        if (node.parameters) |params| {
-            try self.visit(params);
-        }
-        try self.visit(node.body);
-
-        try self.endScope();
-        const func = try self.endCompiler();
-        try self.emitConstant(&node.identifier, Value.fromObject(&func.object));
-
-        const idLoc = try self.identifierConstant(&node.identifier);
-        try self.emitOpByte(.SetLocal, idLoc);
-
-        try self.declareVariable(&node.identifier);
-        self.markScope();
-        self.markInitialised();
     }
 
     fn functionCall(self: *Self, node: *ast.FunctionCall) !void {
