@@ -186,6 +186,8 @@ pub const VM = struct {
 
                 .Pop => _ = try self.pop(),
 
+                .Function => self.push(self.readConstant()),
+
                 .Call => {
                     const count = self.readByte();
                     var val = self.peek(@intCast(i32, count));

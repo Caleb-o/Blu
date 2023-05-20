@@ -210,15 +210,21 @@ pub const Parser = struct {
 
     fn letFunctionDefinition(self: *Self, id: Token, kind: ast.BindingKind, isFinal: bool) !Ast {
         const parameters = try self.parameterList();
-        _ = parameters;
         try self.consume(.Equal, "Expect '=' after parameter list");
+
+        const body = Ast.fromFunctionDef(try ast.FunctionDef.init(
+            self.allocator,
+            id,
+            parameters,
+            if (self.match(.LeftCurly)) try self.block() else try self.expression(),
+        ));
 
         return Ast.fromLetBinding(try ast.LetBinding.init(
             self.allocator,
             id,
             kind,
             isFinal,
-            if (self.check(.LeftCurly)) try self.block() else try self.expression(),
+            body,
         ));
     }
 
@@ -282,8 +288,6 @@ pub const Parser = struct {
 
     fn expressionStatement(self: *Self) !Ast {
         const expr = try self.expression();
-        try self.consume(.Semicolon, "Expect ';' after expression statement");
-
         const exprstmt = try ast.ExpressionStmt.init(self.allocator, expr);
         return Ast.fromExpressionStmt(exprstmt);
     }

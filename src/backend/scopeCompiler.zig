@@ -13,7 +13,7 @@ pub const ScopeCompiler = struct {
     kind: ScopeKind,
     function: *Object.Function,
     depth: i32,
-    locals: usize,
+    locals: u8,
 
     const Self = @This();
 

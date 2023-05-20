@@ -1,1 +1,3 @@
-let final foo = 10 / 2 ** 20;
+let final foo () = {
+  1+2;
+};

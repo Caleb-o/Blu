@@ -12,7 +12,8 @@ pub const Local = struct {
     identifier: Token,
     kind: BindingKind,
     initialised: bool,
-    depth: i32,
+    depth: u32,
+    index: usize,
 
     const Self = @This();
 
@@ -21,7 +22,8 @@ pub const Local = struct {
             .name = undefined,
             .kind = BindingKind.None,
             .initialised = false,
-            .depth = -1,
+            .depth = 0,
+            .index = 0,
         };
     }
 
@@ -36,7 +38,9 @@ pub const Local = struct {
                 .line = 1,
             },
             .kind = BindingKind.None,
+            .initialised = false,
             .depth = 0,
+            .index = 0,
         };
     }
 };

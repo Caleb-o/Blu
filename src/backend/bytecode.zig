@@ -5,6 +5,8 @@ pub const ByteCode = enum(u8) {
     ConstantByte,
     ConstantShort,
 
+    // NOTE: Will be replaced by Closure
+    Function, // index
     Call, // argument_count
 
     GetGlobal,
@@ -49,13 +51,13 @@ pub const ByteCode = enum(u8) {
             .Pop => simpleInstruction("OP_POP", offset),
             .PopN => byteInstruction("OP_POP_N", offset, chunk),
 
+            .Function => constantInstruction("OP_FUNCTION", offset, chunk),
             .Call => byteInstruction("OP_CALL", offset, chunk),
 
             .GetLocal => byteInstruction("OP_GET_LOCAL", offset, chunk),
             .SetLocal => byteInstruction("OP_SET_LOCAL", offset, chunk),
 
             .GetGlobal => constantInstruction("OP_GET_GLOBAL", offset, chunk),
-            // .DefineGlobal => constantInstruction("OP_DEFINE_GLOBAL", offset, chunk),
             .SetGlobal => constantInstruction("OP_SET_GLOBAL", offset, chunk),
 
             .Add => simpleInstruction("OP_ADD", offset),
