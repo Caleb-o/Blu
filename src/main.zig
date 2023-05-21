@@ -63,7 +63,7 @@ fn parseAndGo(source: []const u8) !void {
     defer comp.deinit();
 
     const func = try comp.run(root);
-    const result = machine.setupAndRun(func);
+    const result = try machine.setupAndRun(func);
 
     if (debug.PRINT_CODE) {
         std.debug.print("Run result: {s}\n", .{@tagName(result)});

@@ -84,13 +84,13 @@ pub const Parser = struct {
     }
 
     /// Check if token matches, no consume
-    inline fn check(self: *Self, kind: TokenKind) bool {
+    inline fn check(self: *Self, comptime kind: TokenKind) bool {
         if (self.current.kind != kind) return false;
         return true;
     }
 
     /// Check if token matches any kind, with no consume
-    fn checkAny(self: *Self, kind: []const TokenKind) bool {
+    fn checkAny(self: *Self, comptime kind: []const TokenKind) bool {
         for (kind) |k| {
             if (self.current.kind == k) {
                 return true;
@@ -100,14 +100,14 @@ pub const Parser = struct {
     }
 
     /// Check if token matches, then consume if true
-    inline fn match(self: *Self, kind: TokenKind) bool {
+    inline fn match(self: *Self, comptime kind: TokenKind) bool {
         if (self.current.kind != kind) return false;
         self.advance();
         return true;
     }
 
     /// Check if token matches any kind, then consume if true
-    fn matchAny(self: *Self, kind: []const TokenKind) bool {
+    fn matchAny(self: *Self, comptime kind: []const TokenKind) bool {
         for (kind) |k| {
             if (self.current.kind == k) {
                 self.advance();
@@ -119,7 +119,7 @@ pub const Parser = struct {
 
     /// Consume token if it matches, otherwise error
     // TODO: Allow for sync to progress
-    fn consume(self: *Self, kind: TokenKind, msg: []const u8) ParserError!void {
+    fn consume(self: *Self, comptime kind: TokenKind, comptime msg: []const u8) ParserError!void {
         if (self.current.kind == kind) {
             self.advance();
             return;
@@ -151,7 +151,7 @@ pub const Parser = struct {
 
             .Nil, .True, .False, .String, .Number => try self.primary(),
 
-            // .Identifier => try self.variable(.Local),
+            .Identifier => try self.identifier(),
 
             // Should error instead
             else => std.debug.panic("Unimplemented prefix '{}'\n", .{kind}),
@@ -161,7 +161,7 @@ pub const Parser = struct {
     pub fn infix(self: *Self, kind: TokenKind) ParserError!Ast {
         return switch (kind) {
             .Plus, .Minus, .Star, .Slash, .StarStar, .Percent => try self.binary(),
-            // .LeftParen => try self.call(),
+            .LeftParen => try self.call(),
 
             else => std.debug.panic("Unimplemented infix '{}'\n", .{kind}),
         };
@@ -228,10 +228,8 @@ pub const Parser = struct {
         ));
     }
 
-    fn identifier(self: *Self, msg: []const u8) !Ast {
-        const id = self.current;
-        try self.consume(.Identifier, msg);
-        return Ast.fromIdentifier(try ast.Identifier.init(self.allocator, id));
+    fn identifier(self: *Self) !Ast {
+        return Ast.fromIdentifier(try ast.Identifier.init(self.allocator, self.previous));
     }
 
     fn parameterList(self: *Self) !Ast {
@@ -242,8 +240,8 @@ pub const Parser = struct {
             // No parameters
             try self.consume(.RightParen, "Expect ')' after '(' in function parameter list");
         } else if (!self.check(.Equal)) {
-            while (self.match(.Identifier)) {
-                try list.append(try self.identifier("Expect identifier in parameter list"));
+            while (self.check(.Identifier)) {
+                try list.append(try self.identifier());
             }
         }
 

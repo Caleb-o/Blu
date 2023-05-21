@@ -1,3 +1,11 @@
-let final foo () = {
-  1+2;
+let outer () = {
+  let x = 1;
+
+  let inner () = {
+    // let y = x + 2;
+    print(100);
+  };
+  inner();
 };
+outer();
+// print(10);

@@ -9,7 +9,9 @@ pub const ObjectKind = enum {
     String,
     List,
     Function,
+    Closure,
     NativeFunction,
+    Upvalue,
 };
 
 pub const Object = struct {
@@ -37,7 +39,9 @@ pub const Object = struct {
             .String => self.asString().destroy(vm),
             .List => self.asList().destroy(vm),
             .Function => self.asFunction().destroy(vm),
+            .Closure => self.asClosure().destroy(vm),
             .NativeFunction => self.asNativeFunction().destroy(vm),
+            .Upvalue => self.asUpvalue().destroy(vm),
         }
     }
 
@@ -51,7 +55,9 @@ pub const Object = struct {
                 }
             },
             .Function => std.debug.print("<fn {s}>", .{self.asFunction().getIdentifier()}),
+            .Closure => std.debug.print("<closure {s}>", .{self.asClosure().function.getIdentifier()}),
             .NativeFunction => std.debug.print("<nativefn {s}>", .{self.asNativeFunction().identifier}),
+            .Upvalue => std.debug.print("<upvalue>", .{}),
         }
     }
 
@@ -68,8 +74,16 @@ pub const Object = struct {
         return self.kind == .Function;
     }
 
+    pub inline fn isClosure(self: *Self) bool {
+        return self.kind == .Closure;
+    }
+
     pub inline fn isNativeFunction(self: *Self) bool {
         return self.kind == .NativeFunction;
+    }
+
+    pub inline fn isUpvalue(self: *Self) bool {
+        return self.kind == .Upvalue;
     }
 
     // "Cast"
@@ -88,9 +102,19 @@ pub const Object = struct {
         return @fieldParentPtr(Function, "object", self);
     }
 
+    pub fn asClosure(self: *Self) *Closure {
+        std.debug.assert(self.isClosure());
+        return @fieldParentPtr(Closure, "object", self);
+    }
+
     pub fn asNativeFunction(self: *Self) *NativeFunction {
         std.debug.assert(self.isNativeFunction());
         return @fieldParentPtr(NativeFunction, "object", self);
+    }
+
+    pub fn asUpvalue(self: *Self) *Upvalue {
+        std.debug.assert(self.isUpvalue());
+        return @fieldParentPtr(Upvalue, "object", self);
     }
 
     pub const String = struct {
@@ -187,7 +211,7 @@ pub const Object = struct {
     pub const Function = struct {
         object: Self,
         arity: u8,
-        upvalueCount: u32,
+        upvalueCount: u8,
         chunk: Chunk,
         identifier: ?*String,
 
@@ -217,25 +241,62 @@ pub const Object = struct {
         }
     };
 
+    pub const Closure = struct {
+        object: Self,
+        function: *Function,
+        // Non-owning
+        upvalues: ArrayList(*Upvalue),
+
+        pub fn create(vm: *VM, function: *Function) !*Closure {
+            const object = try Self.allocate(vm, Closure, .Closure);
+            const closure = object.asClosure();
+            closure.function = function;
+            closure.upvalues = ArrayList(*Upvalue).init(vm.allocator);
+            return closure;
+        }
+
+        pub inline fn destroy(self: *Closure, vm: *VM) void {
+            self.upvalues.deinit();
+            self.function.destroy(vm);
+            vm.allocator.destroy(self);
+        }
+    };
+
     pub const ZigFunc = *const fn (vm: *VM, args: []Value) Value;
 
     pub const NativeFunction = struct {
         object: Self,
         identifier: []const u8,
         arity: u8,
-        func: ZigFunc,
+        function: ZigFunc,
 
         pub fn create(vm: *VM, identifier: []const u8, arity: u8, func: ZigFunc) !*NativeFunction {
             const object = try Self.allocate(vm, NativeFunction, .NativeFunction);
             const native = object.asNativeFunction();
             native.identifier = identifier;
             native.arity = arity;
-            native.func = func;
+            native.function = func;
 
             return native;
         }
 
         pub inline fn destroy(self: *NativeFunction, vm: *VM) void {
+            vm.allocator.destroy(self);
+        }
+    };
+
+    pub const Upvalue = struct {
+        object: Self,
+        location: *Value,
+
+        pub fn create(vm: *VM, location: *Value) !*Upvalue {
+            const object = try Self.allocate(vm, Upvalue, .Upvalue);
+            const upvalue = object.asUpvalue();
+            upvalue.location = location;
+            return upvalue;
+        }
+
+        pub inline fn destroy(self: *Upvalue, vm: *VM) void {
             vm.allocator.destroy(self);
         }
     };

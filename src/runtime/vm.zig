@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const FixedBufferAllocator = std.heap.FixedBufferAllocator;
 const ArrayList = std.ArrayList;
 const root = @import("root");
 
@@ -9,8 +10,8 @@ const value = @import("value.zig");
 const Value = value.Value;
 const ValueKind = value.ValueKind;
 const Object = @import("object.zig").Object;
-const Compiler = root.compiler.Compiler;
 const Error = root.errors;
+const RuntimeError = Error.RuntimeError;
 const Table = @import("table.zig");
 
 pub const InterpretResult = enum {
@@ -25,21 +26,26 @@ pub const InterpretErr = error{
 };
 
 const CallFrame = struct {
-    function: *Object.Function,
+    closure: *Object.Closure,
     ip: usize,
     slotStart: usize,
 
-    pub fn create(function: *Object.Function, slotStart: usize) CallFrame {
+    pub fn create(closure: *Object.Closure, slotStart: usize) CallFrame {
         return .{
-            .function = function,
+            .closure = closure,
             .ip = 0,
             .slotStart = slotStart,
         };
     }
 };
 
+// The buffer should be a fixed size and live on the
+// *real* stack, so the access is cheap
+var STACK_BUFFER: [256 * @sizeOf(Value)]u8 = undefined;
+
 pub const VM = struct {
     allocator: Allocator,
+    stackAllocator: Allocator,
     errorAllocator: Allocator,
     stack: ArrayList(Value),
     frames: ArrayList(CallFrame),
@@ -50,10 +56,13 @@ pub const VM = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator, errorAllocator: Allocator) !VM {
+        var fba = FixedBufferAllocator.init(&STACK_BUFFER);
+        const stackAllocator = fba.allocator();
         return .{
             .allocator = allocator,
+            .stackAllocator = stackAllocator,
             .errorAllocator = errorAllocator,
-            .stack = try ArrayList(Value).initCapacity(allocator, 32),
+            .stack = try ArrayList(Value).initCapacity(stackAllocator, 32),
             .frames = try ArrayList(CallFrame).initCapacity(allocator, 8),
             .globals = Table.init(allocator),
             .strings = Table.init(allocator),
@@ -63,19 +72,21 @@ pub const VM = struct {
 
     pub fn deinit(self: *Self) void {
         self.frames.deinit();
-        self.stack.deinit();
         self.globals.deinit();
         self.strings.deinit();
         self.freeObjects();
         self.objects = null;
     }
 
-    pub fn setupAndRun(self: *Self, func: *Object.Function) InterpretResult {
-        self.push(Value.fromObject(&func.object)) catch unreachable;
+    pub fn setupAndRun(self: *Self, func: *Object.Function) !InterpretResult {
+        try self.push(Value.fromObject(&func.object));
+        const closure = try Object.Closure.create(self, func);
+        _ = try self.pop();
+        try self.push(Value.fromObject(&closure.object));
 
         // Call the script function
         // -- Sets up callframe
-        _ = self.call(func, 0) catch {
+        _ = self.call(closure, 0) catch {
             self.runtimeError("Failed to call script function.\n");
             return .CompilerError;
         };
@@ -115,7 +126,7 @@ pub const VM = struct {
     }
 
     inline fn currentChunk(self: *Self) *Chunk {
-        return &self.currentFrame().function.chunk;
+        return &self.currentFrame().closure.function.chunk;
     }
 
     fn runtimeError(self: *Self, msg: []const u8) void {
@@ -131,7 +142,7 @@ pub const VM = struct {
         var idx: isize = @intCast(isize, self.frames.items.len) - 1;
         while (idx >= 0) : (idx -= 1) {
             const stackFrame = &self.frames.items[@intCast(usize, idx)];
-            const function = stackFrame.function;
+            const function = stackFrame.closure.function;
             const funcLine = 1;
 
             std.debug.print("[line {d}] in ", .{funcLine});
@@ -151,26 +162,39 @@ pub const VM = struct {
         self.runtimeError(msg);
     }
 
+    inline fn captureUpvalue(self: *Self, index: usize) !*Object.Upvalue {
+        const val = &self.stack.items[index];
+        return try Object.Upvalue.create(self, val);
+    }
+
     fn callObject(self: *Self, object: *Object, argCount: usize) !bool {
         return switch (object.kind) {
-            .Function => try self.call(object.asFunction(), argCount),
-            .NativeFunction => false,
+            .Closure => try self.call(object.asClosure(), argCount),
+            .NativeFunction => {
+                // Don't include function within args
+                const args = self.stack.items[self.stack.items.len - argCount ..];
+                const result = object.asNativeFunction().function(self, args);
+
+                try self.stack.resize(self.stack.items.len - 1 - argCount);
+                try self.push(result);
+                return true;
+            },
             else => unreachable,
         };
     }
 
-    fn call(self: *Self, function: *Object.Function, argCount: usize) !bool {
-        if (function.arity != argCount) {
+    fn call(self: *Self, closure: *Object.Closure, argCount: usize) !bool {
+        if (closure.function.arity != argCount) {
             try self.runtimeErrorAlloc(
                 "Function '{s}' expected {d} arguments, but received {d}.",
-                .{ function.identifier.?.chars, function.arity, argCount },
+                .{ closure.function.getIdentifier(), closure.function.arity, argCount },
             );
             return false;
         }
 
         std.debug.assert(self.stack.items.len >= 1);
         self.pushFrame(CallFrame.create(
-            function,
+            closure,
             self.stack.items.len - argCount - 1,
         ));
         return true;
@@ -180,13 +204,35 @@ pub const VM = struct {
         defer std.debug.print("\n", .{});
         while (true) {
             const instruction = self.readByte();
+            // std.debug.print("'{s}' {d}::{}\n", .{
+            //     self.currentFrame().closure.function.getIdentifier(),
+            //     self.currentFrame().ip - 1,
+            //     @intToEnum(ByteCode, instruction),
+            // });
 
             try switch (@intToEnum(ByteCode, instruction)) {
                 .ConstantByte => self.push(self.readConstant()),
 
                 .Pop => _ = try self.pop(),
 
-                .Function => self.push(self.readConstant()),
+                .Closure => {
+                    var val = self.readConstant();
+                    const function = val.asObject().asFunction();
+                    const closure = try Object.Closure.create(self, function);
+                    try self.push(Value.fromObject(&closure.object));
+
+                    for (0..@intCast(usize, closure.function.upvalueCount)) |_| {
+                        const isLocal = self.readByte() == 1;
+                        const index = @intCast(usize, self.readByte());
+
+                        const frame = self.currentFrame();
+                        if (isLocal) {
+                            try closure.upvalues.append(try self.captureUpvalue(frame.slotStart + index));
+                        } else {
+                            try closure.upvalues.append(frame.closure.upvalues.items[index]);
+                        }
+                    }
+                },
 
                 .Call => {
                     const count = self.readByte();
@@ -217,6 +263,18 @@ pub const VM = struct {
                 .SetGlobal => {
                     const name = self.readString();
                     _ = self.globals.set(name, self.peek(0));
+                },
+
+                .GetUpvalue => {
+                    const slot = @intCast(usize, self.readByte());
+                    const frame = self.currentFrame();
+                    try self.push(frame.closure.upvalues.items[slot].location.*);
+                },
+
+                .SetUpvalue => {
+                    const slot = @intCast(usize, self.readByte());
+                    const frame = self.currentFrame();
+                    frame.closure.upvalues.items[slot].location.* = self.peek(0);
                 },
 
                 .Add => try self.binaryOp('+'),
@@ -297,7 +355,7 @@ pub const VM = struct {
                         // Script callframe - finish
                         return .Ok;
                     }
-                    self.stack.resize(oldFrame.slotStart) catch unreachable;
+                    try self.stack.resize(oldFrame.slotStart);
                     _ = try self.push(result);
                 },
                 else => unreachable,
@@ -321,11 +379,15 @@ pub const VM = struct {
         return val.asObject().asString();
     }
 
-    pub inline fn push(self: *Self, val: Value) !void {
+    pub inline fn push(self: *Self, val: Value) RuntimeError!void {
+        if (self.stack.items.len == std.math.maxInt(u8)) {
+            self.runtimeError("Stack overflow");
+            return RuntimeError.StackOverflow;
+        }
         _ = try self.stack.append(val);
     }
 
-    inline fn peek(self: *Self, distance: i32) Value {
+    pub inline fn peek(self: *Self, distance: i32) Value {
         const stack = self.stack.items;
         return stack[stack.len - 1 - @intCast(usize, distance)];
     }

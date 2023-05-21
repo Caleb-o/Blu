@@ -13,7 +13,8 @@ pub const Local = struct {
     kind: BindingKind,
     initialised: bool,
     depth: u32,
-    index: usize,
+    index: u8,
+    isCaptured: bool,
 
     const Self = @This();
 
@@ -24,6 +25,7 @@ pub const Local = struct {
             .initialised = false,
             .depth = 0,
             .index = 0,
+            .isCaptured = false,
         };
     }
 

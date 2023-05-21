@@ -6,13 +6,15 @@ pub const ByteCode = enum(u8) {
     ConstantShort,
 
     // NOTE: Will be replaced by Closure
-    Function, // index
+    Closure, // index
     Call, // argument_count
 
     GetGlobal,
     SetGlobal,
     GetLocal,
     SetLocal,
+    GetUpvalue,
+    SetUpvalue,
 
     Not,
     Negate,
@@ -43,7 +45,6 @@ pub const ByteCode = enum(u8) {
     const Self = @This();
 
     pub fn decode(self: Self, offset: u32, chunk: *Chunk) u32 {
-        defer std.debug.print("\n", .{});
         return switch (self) {
             .ConstantByte => constantInstruction("OP_CONSTANT_BYTE", offset, chunk),
             // FIXME: Make new short function
@@ -51,7 +52,7 @@ pub const ByteCode = enum(u8) {
             .Pop => simpleInstruction("OP_POP", offset),
             .PopN => byteInstruction("OP_POP_N", offset, chunk),
 
-            .Function => constantInstruction("OP_FUNCTION", offset, chunk),
+            .Closure => closureInstruction(offset, chunk),
             .Call => byteInstruction("OP_CALL", offset, chunk),
 
             .GetLocal => byteInstruction("OP_GET_LOCAL", offset, chunk),
@@ -59,6 +60,9 @@ pub const ByteCode = enum(u8) {
 
             .GetGlobal => constantInstruction("OP_GET_GLOBAL", offset, chunk),
             .SetGlobal => constantInstruction("OP_SET_GLOBAL", offset, chunk),
+
+            .GetUpvalue => byteInstruction("OP_GET_UPVALUE", offset, chunk),
+            .SetUpvalue => byteInstruction("OP_SET_UPVALUE", offset, chunk),
 
             .Add => simpleInstruction("OP_ADD", offset),
             .Sub => simpleInstruction("OP_SUB", offset),
@@ -88,13 +92,13 @@ pub const ByteCode = enum(u8) {
     }
 
     fn simpleInstruction(tag: []const u8, offset: u32) u32 {
-        std.debug.print("{s}", .{tag});
+        std.debug.print("{s}\n", .{tag});
         return offset + 1;
     }
 
     fn byteInstruction(comptime name: []const u8, offset: u32, chunk: *Chunk) u32 {
         const slot = chunk.code.items[offset + 1];
-        std.debug.print("{s:<16} {d:4}", .{ name, slot });
+        std.debug.print("{s:<16} {d:4}\n", .{ name, slot });
         return offset + 2;
     }
 
@@ -102,7 +106,37 @@ pub const ByteCode = enum(u8) {
         const index = chunk.code.items[offset + 1];
         std.debug.print("{s:<16} -- '", .{tag});
         chunk.constants.items[@intCast(usize, index)].print();
-        std.debug.print("'", .{});
+        std.debug.print("'\n", .{});
         return offset + 2;
+    }
+
+    fn closureInstruction(offset: u32, chunk: *Chunk) u32 {
+        const index = chunk.code.items[offset + 1];
+        std.debug.print("{s:<16} -- '", .{"OP_CLOSURE"});
+
+        var val = chunk.constants.items[@intCast(usize, index)];
+        const function = val.asObject().asFunction();
+
+        val.print();
+        std.debug.print("'\n", .{});
+
+        var upvalues = offset + 2;
+        for (0..function.upvalueCount) |_| {
+            const isLocal = chunk.code.items[upvalues] == 1;
+            const upIndex = chunk.code.items[upvalues + 1];
+
+            std.debug.print(
+                "{d:0>4}  |                     {s} {d}\n",
+                .{
+                    upvalues,
+                    if (isLocal) "local" else "upvalue",
+                    upIndex,
+                },
+            );
+
+            upvalues += 2;
+        }
+
+        return offset + 2 + (function.upvalueCount * 2);
     }
 };
