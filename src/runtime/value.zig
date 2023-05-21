@@ -104,7 +104,7 @@ pub const Value = union(ValueKind) {
 
     pub fn print(self: *Self) void {
         switch (self.*) {
-            .nil => std.debug.print(" ", .{}),
+            .nil => std.debug.print("nil", .{}),
             .number => |v| std.debug.print("{d}", .{v}),
             .boolean => |v| std.debug.print("{any}", .{v}),
             .object => |v| v.print(),

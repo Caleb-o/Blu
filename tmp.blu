@@ -1,11 +1,16 @@
-let outer () = {
-  let x = 1;
+// let outer () = {
+//   let x = 1;
 
-  let inner () = {
-    // let y = x + 2;
-    print(100);
+//   let inner () = {
+//     let y = x + 2;
+//   };
+//   inner();
+//   print(100);
+// };
+// outer();
+let foo () = {
+  print(10);
+  let bar a = {
+    0;
   };
-  inner();
 };
-outer();
-// print(10);

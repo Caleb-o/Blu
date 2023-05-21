@@ -240,7 +240,7 @@ pub const Parser = struct {
             // No parameters
             try self.consume(.RightParen, "Expect ')' after '(' in function parameter list");
         } else if (!self.check(.Equal)) {
-            while (self.check(.Identifier)) {
+            while (self.match(.Identifier)) {
                 try list.append(try self.identifier());
             }
         }

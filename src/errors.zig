@@ -15,12 +15,13 @@ pub const CompilerError = error{
     TooManyUpvalues,
     UndefinedLocal,
     UnknownLocal,
-    SymbolDefined,
+    LocalDefined,
 } || std.mem.Allocator.Error || std.fmt.ParseFloatError;
 
 pub const RuntimeError = error{
     StackOverflow,
     StackUnderflow,
+    InvalidCallOnValue,
 } || std.mem.Allocator.Error;
 
 pub fn errorWithToken(token: *Token, where: []const u8, msg: []const u8) void {

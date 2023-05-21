@@ -1,8 +1,10 @@
 const std = @import("std");
+const ArrayList = std.ArrayList;
 const root = @import("root");
 const Object = root.object.Object;
 
 const VM = root.vm.VM;
+const Local = @import("locals.zig").Local;
 
 // Functions and lambdas are treated differently
 // Functions cannot view locals outside its scope,
@@ -25,22 +27,25 @@ pub const ScopeCompiler = struct {
     enclosing: ?*ScopeCompiler,
     kind: ScopeKind,
     function: *Object.Function,
-    depth: i32,
-    locals: u8,
-    upvalues: []Upvalue,
+    depth: usize,
+    locals: ArrayList(Local),
+    upvalues: ArrayList(Upvalue),
 
     const Self = @This();
 
-    pub fn init(vm: *VM, depth: i32, kind: ScopeKind, enclosing: ?*ScopeCompiler) !Self {
+    pub fn init(vm: *VM, depth: usize, kind: ScopeKind, enclosing: ?*ScopeCompiler) !Self {
         return .{
             .enclosing = enclosing,
             .kind = kind,
             .function = try Object.Function.create(vm),
             .depth = depth,
-            .locals = 0,
-            .upvalues = &[_]Upvalue{
-                Upvalue.create(),
-            } ** (std.math.maxInt(u8) + 1),
+            .locals = ArrayList(Local).init(vm.allocator),
+            .upvalues = ArrayList(Upvalue).init(vm.allocator),
         };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.locals.deinit();
+        self.upvalues.deinit();
     }
 };

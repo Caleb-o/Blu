@@ -179,7 +179,10 @@ pub const VM = struct {
                 try self.push(result);
                 return true;
             },
-            else => unreachable,
+            else => {
+                self.runtimeError("Cannot call value");
+                return RuntimeError.InvalidCallOnValue;
+            },
         };
     }
 
@@ -195,7 +198,7 @@ pub const VM = struct {
         std.debug.assert(self.stack.items.len >= 1);
         self.pushFrame(CallFrame.create(
             closure,
-            self.stack.items.len - argCount - 1,
+            self.stack.items.len - 1 - argCount,
         ));
         return true;
     }
@@ -204,12 +207,6 @@ pub const VM = struct {
         defer std.debug.print("\n", .{});
         while (true) {
             const instruction = self.readByte();
-            // std.debug.print("'{s}' {d}::{}\n", .{
-            //     self.currentFrame().closure.function.getIdentifier(),
-            //     self.currentFrame().ip - 1,
-            //     @intToEnum(ByteCode, instruction),
-            // });
-
             try switch (@intToEnum(ByteCode, instruction)) {
                 .ConstantByte => self.push(self.readConstant()),
 
@@ -236,8 +233,8 @@ pub const VM = struct {
 
                 .Call => {
                     const count = self.readByte();
-                    var val = self.peek(@intCast(i32, count));
-                    _ = try self.callObject(val.asObject(), count);
+                    var func = self.peek(@intCast(i32, count));
+                    _ = try self.callObject(func.asObject(), count);
                 },
 
                 .GetLocal => {

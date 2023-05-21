@@ -12,9 +12,9 @@ pub const Local = struct {
     identifier: Token,
     kind: BindingKind,
     initialised: bool,
-    depth: u32,
-    index: u8,
     isCaptured: bool,
+    depth: u8,
+    index: u8,
 
     const Self = @This();
 
@@ -23,9 +23,9 @@ pub const Local = struct {
             .name = undefined,
             .kind = BindingKind.None,
             .initialised = false,
+            .isCaptured = false,
             .depth = 0,
             .index = 0,
-            .isCaptured = false,
         };
     }
 
@@ -44,31 +44,5 @@ pub const Local = struct {
             .depth = 0,
             .index = 0,
         };
-    }
-};
-
-pub const LocalTable = struct {
-    locals: ArrayList(Local),
-    currentDepth: u32,
-
-    const Self = @This();
-
-    pub fn init(allocator: Allocator) Self {
-        return .{
-            .locals = ArrayList(Local).init(allocator),
-            .currentDepth = 0,
-        };
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.locals.deinit();
-    }
-
-    pub inline fn last(self: *Self) u8 {
-        return @intCast(u8, self.locals.items.len);
-    }
-
-    pub inline fn append(self: *Self, local: Local) !void {
-        try self.locals.append(local);
     }
 };

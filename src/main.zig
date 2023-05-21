@@ -59,8 +59,7 @@ fn parseAndGo(source: []const u8) !void {
     var machine = try vm.VM.init(arenaAlloc, arenaAlloc);
     defer machine.deinit();
 
-    var comp = compiler.Compiler.init(arenaAlloc, &machine);
-    defer comp.deinit();
+    var comp = compiler.Compiler.init(&machine);
 
     const func = try comp.run(root);
     const result = try machine.setupAndRun(func);
