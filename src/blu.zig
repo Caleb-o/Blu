@@ -20,14 +20,16 @@ pub fn run() !void {
     defer std.process.argsFree(allocator, args);
 
     if (args.len != 2) {
-        std.debug.print("Usage: concat [fileName]\n", .{});
+        std.debug.print("Usage: blu [fileName]\n", .{});
         return;
     }
 
     const source = try readFile(allocator, args[1]);
     defer allocator.free(source);
 
-    try parseAndGo(source);
+    parseAndGo(source) catch |err| {
+        std.debug.print("Error occured: {s}\n", .{@errorName(err)});
+    };
 }
 
 fn parseAndGo(source: []const u8) !void {
@@ -60,4 +62,8 @@ fn readFile(allocator: Allocator, fileName: []const u8) ![]u8 {
     const file = try std.fs.cwd().openFile(fileName, .{});
     const contents = try file.readToEndAlloc(allocator, (try file.stat()).size);
     return contents;
+}
+
+test {
+    std.testing.refAllDeclsRecursive(@This());
 }
