@@ -211,7 +211,6 @@ pub const Object = struct {
     pub const Function = struct {
         object: Self,
         arity: u8,
-        upvalueCount: u8,
         chunk: Chunk,
         identifier: ?*String,
 
@@ -219,7 +218,6 @@ pub const Object = struct {
             const object = try Self.allocate(vm, Function, .Function);
             const func = object.asFunction();
             func.arity = 0;
-            func.upvalueCount = 0;
             func.identifier = null;
             func.chunk = Chunk.init(vm.allocator);
 

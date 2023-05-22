@@ -115,28 +115,10 @@ pub const ByteCode = enum(u8) {
         std.debug.print("{s:<16} -- '", .{"OP_CLOSURE"});
 
         var val = chunk.constants.items[@intCast(usize, index)];
-        const function = val.asObject().asFunction();
 
         val.print();
         std.debug.print("'\n", .{});
 
-        var upvalues = offset + 2;
-        for (0..function.upvalueCount) |_| {
-            const isLocal = chunk.code.items[upvalues] == 1;
-            const upIndex = chunk.code.items[upvalues + 1];
-
-            std.debug.print(
-                "{d:0>4}  |                     {s} {d}\n",
-                .{
-                    upvalues,
-                    if (isLocal) "local" else "upvalue",
-                    upIndex,
-                },
-            );
-
-            upvalues += 2;
-        }
-
-        return offset + 2 + (function.upvalueCount * 2);
+        return offset + 2;
     }
 };

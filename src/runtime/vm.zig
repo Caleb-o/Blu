@@ -217,18 +217,6 @@ pub const VM = struct {
                     const function = val.asObject().asFunction();
                     const closure = try Object.Closure.create(self, function);
                     try self.push(Value.fromObject(&closure.object));
-
-                    for (0..@intCast(usize, closure.function.upvalueCount)) |_| {
-                        const isLocal = self.readByte() == 1;
-                        const index = @intCast(usize, self.readByte());
-
-                        const frame = self.currentFrame();
-                        if (isLocal) {
-                            try closure.upvalues.append(try self.captureUpvalue(frame.slotStart + index));
-                        } else {
-                            try closure.upvalues.append(frame.closure.upvalues.items[index]);
-                        }
-                    }
                 },
 
                 .Call => {
