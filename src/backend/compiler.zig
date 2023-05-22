@@ -28,6 +28,7 @@ pub const Compiler = struct {
     scopeComp: *ScopeCompiler,
     vm: *VM,
     locals: LocalTable,
+    canAssign: bool,
 
     const Self = @This();
 
@@ -36,7 +37,12 @@ pub const Compiler = struct {
             .scopeComp = undefined,
             .vm = vm,
             .locals = LocalTable.init(vm.allocator),
+            .canAssign = false,
         };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.locals.deinit();
     }
 
     pub fn run(self: *Self, rootNode: Ast) !*Object.Function {
@@ -104,8 +110,9 @@ pub const Compiler = struct {
             .kind = kind,
             .initialised = false,
             .depth = self.locals.depth,
-            .index = @intCast(u8, self.locals.locals.items.len),
+            .index = self.scopeComp.locals,
         });
+        self.scopeComp.locals += 1;
     }
 
     fn initialiseVariable(self: *Self, identifier: *Token) !void {
@@ -164,29 +171,34 @@ pub const Compiler = struct {
     fn visit(self: *Self, node: Ast) CompilerError!void {
         switch (node) {
             .binding => |n| try self.letBinding(n),
+            .identifier => |n| try self.identifierExpr(n),
+            .assignment => |n| try self.assignment(n),
 
             .literal => |n| try self.literal(n),
             .binary => |n| try self.binary(n),
             .body => |n| try self.body(n),
+
+            .expressionStmt => |n| try self.visit(n.inner),
 
             else => std.debug.panic("UNIMPLEMENTED: '{s}'\n", .{@tagName(node)}),
         }
     }
 
     fn letBinding(self: *Self, node: *ast.LetBinding) !void {
+        try self.declareVariable(&node.token, node.kind);
+
         if (node.rhs.isFunctionDef()) {
             try self.functionDef(&node.token, node.rhs.asFunctionDef());
         } else {
             try self.visit(node.rhs);
         }
 
-        try self.declareVariable(&node.token, node.kind);
         try self.initialiseVariable(&node.token);
 
         if (self.locals.depth == 0) {
             try self.emitOpByte(.SetGlobal, try self.identifierConstant(&node.token));
         } else {
-            try self.emitOpByte(.SetLocal, try self.locals.lastLocal());
+            try self.emitOpByte(.SetLocal, self.scopeComp.locals - 1);
         }
     }
 
@@ -215,6 +227,46 @@ pub const Compiler = struct {
             identifier,
             Value.fromObject(&func.object),
         ));
+    }
+
+    fn identifierExpr(self: *Self, node: *ast.Identifier) !void {
+        const maybeLocal = self.locals.find(&node.token);
+        if (maybeLocal == null) {
+            errors.errorWithToken(&node.token, "Compiler", "Undefined local");
+            return CompilerError.UndefinedLocal;
+        }
+
+        const local = maybeLocal.?;
+        var setOp: ByteCode = undefined;
+        var getOp: ByteCode = undefined;
+        var index: u8 = local.index;
+
+        if (local.depth == 0) {
+            setOp = .SetGlobal;
+            getOp = .GetGlobal;
+            index = try self.identifierConstant(&node.token);
+        } else if (local.depth >= self.scopeComp.depth) {
+            setOp = .SetLocal;
+            getOp = .GetLocal;
+        } else {
+            // TODO: Upvalue
+            std.debug.panic("UPVALUE\n", .{});
+        }
+
+        if (self.canAssign) {
+            try self.emitOpByte(setOp, index);
+        } else {
+            try self.emitOpByte(getOp, index);
+        }
+    }
+
+    fn assignment(self: *Self, node: *ast.Assignment) !void {
+        self.canAssign = true;
+        try self.visit(node.rhs);
+        try self.visit(node.lhs);
+        self.canAssign = false;
+
+        // TODO: Handle different types of assignment
     }
 
     fn literal(self: *Self, node: *ast.Literal) !void {

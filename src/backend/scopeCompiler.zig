@@ -14,6 +14,7 @@ pub const ScopeCompiler = struct {
     kind: ScopeKind,
     function: *Object.Function,
     depth: usize,
+    locals: u8,
 
     const Self = @This();
 
@@ -23,6 +24,7 @@ pub const ScopeCompiler = struct {
             .kind = kind,
             .function = try Object.Function.create(vm),
             .depth = depth,
+            .locals = 0,
         };
     }
 };

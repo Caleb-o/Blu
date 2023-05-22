@@ -60,6 +60,7 @@ fn parseAndGo(source: []const u8) !void {
     defer machine.deinit();
 
     var comp = compiler.Compiler.init(&machine);
+    defer comp.deinit();
 
     const func = try comp.run(root);
     const result = try machine.setupAndRun(func);

@@ -135,8 +135,9 @@ pub const Parser = struct {
 
         while (@enumToInt(precedence) <= @enumToInt(prec.getPrecedence(self.current.kind))) {
             self.advance();
+
             const op = self.previous;
-            const rhs = try self.infix(self.previous.kind);
+            const rhs = try self.infix(op.kind);
             node = Ast.fromBinary(try ast.Binary.init(self.allocator, op, node, rhs));
         }
         return node;
@@ -229,7 +230,17 @@ pub const Parser = struct {
     }
 
     fn identifier(self: *Self) !Ast {
-        return Ast.fromIdentifier(try ast.Identifier.init(self.allocator, self.previous));
+        const id = Ast.fromIdentifier(try ast.Identifier.init(self.allocator, self.previous));
+        if (self.match(.Equal)) {
+            const assign = try ast.Assignment.init(
+                self.allocator,
+                self.previous,
+                id,
+                try self.expression(),
+            );
+            return Ast.fromAssignment(assign);
+        }
+        return id;
     }
 
     fn parameterList(self: *Self) !Ast {
