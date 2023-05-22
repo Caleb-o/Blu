@@ -12,11 +12,14 @@ pub const ParserError = error{
 pub const CompilerError = error{
     TooManyLocals,
     TooManyArguments,
+    TooManyConstants,
     TooManyUpvalues,
     TooManyScopes,
     UndefinedLocal,
     UnknownLocal,
     LocalDefined,
+
+    Unimplemented,
 } || std.mem.Allocator.Error || std.fmt.ParseFloatError;
 
 pub const RuntimeError = error{

@@ -355,3 +355,26 @@ pub const Lexer = struct {
         return .Identifier;
     }
 };
+
+// ====== TESTS
+const expect = std.testing.expect;
+
+test "Valid tokens" {
+    const src =
+        \\// Operators
+        \\+ - * / ** ! %
+        \\= == < <= > >=
+        \\{} () []
+        \\; . ,
+        \\// Keywords
+        \\and or fn let final mut
+        \\// Literals
+        \\100 2.3 'Hello' "World"
+        \\true false nil
+    ;
+    var lexer = Lexer.init(src);
+    var token = lexer.getToken();
+    while (token.kind != .Eof) : (token = lexer.getToken()) {
+        try expect(token.kind != .Error);
+    }
+}

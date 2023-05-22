@@ -4,7 +4,7 @@ const Allocator = std.mem.Allocator;
 const Arena = std.heap.ArenaAllocator;
 const GPA = std.heap.GeneralPurposeAllocator(.{});
 
-const errors = @import("root").errors;
+const errors = @import("../errors.zig");
 const ParserError = errors.ParserError;
 
 const ast = @import("nodes/ast.zig");

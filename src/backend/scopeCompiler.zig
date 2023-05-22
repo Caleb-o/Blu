@@ -1,8 +1,8 @@
 const std = @import("std");
 const root = @import("root");
-const Object = root.object.Object;
+const Object = @import("../runtime/object.zig").Object;
 
-const VM = root.vm.VM;
+const VM = @import("../runtime/vm.zig").VM;
 
 // Functions and lambdas are treated differently
 // Functions cannot view locals outside its scope,

@@ -3,22 +3,14 @@ const Allocator = std.mem.Allocator;
 const GPA = std.heap.GeneralPurposeAllocator(.{});
 const Arena = std.heap.ArenaAllocator;
 
-// Expose to root
-pub const lexer = @import("frontend/lexer.zig");
-pub const ast = @import("frontend/nodes/ast.zig");
-pub const parser = @import("frontend/parser.zig");
-pub const bytecode = @import("backend/bytecode.zig");
-pub const chunk = @import("backend/chunk.zig");
-pub const compiler = @import("backend/compiler.zig");
-pub const errors = @import("errors.zig");
-pub const debug = @import("debug.zig");
-pub const value = @import("runtime/value.zig");
-pub const object = @import("runtime/object.zig");
-pub const vm = @import("runtime/vm.zig");
+const debug = @import("debug.zig");
+const Parser = @import("frontend/parser.zig").Parser;
+const Compiler = @import("backend/compiler.zig").Compiler;
+const VM = @import("runtime/vm.zig").VM;
 
 pub fn main() void {
-    langMain() catch {
-        std.debug.print("Error occured!\n", .{});
+    langMain() catch |err| {
+        std.debug.print("Error occured : {s}!\n", .{@errorName(err)});
     };
 }
 
@@ -51,19 +43,19 @@ fn parseAndGo(source: []const u8) !void {
     const arenaAlloc = arena.allocator();
     defer arena.deinit();
 
-    var pars = parser.Parser.init(arenaAlloc, source);
-    defer pars.deinit();
+    var parser = Parser.init(arenaAlloc, source);
+    defer parser.deinit();
 
-    var root = try pars.parse();
+    var root = try parser.parse();
 
-    var machine = try vm.VM.init(arenaAlloc, arenaAlloc);
-    defer machine.deinit();
+    var vm = try VM.init(arenaAlloc, arenaAlloc);
+    defer vm.deinit();
 
-    var comp = compiler.Compiler.init(&machine);
-    defer comp.deinit();
+    var compiler = Compiler.init(&vm);
+    defer compiler.deinit();
 
-    const func = try comp.run(root);
-    const result = try machine.setupAndRun(func);
+    const func = try compiler.run(root);
+    const result = try vm.setupAndRun(func);
 
     if (debug.PRINT_CODE) {
         std.debug.print("Run result: {s}\n", .{@tagName(result)});
@@ -74,4 +66,8 @@ fn readFile(allocator: Allocator, fileName: []const u8) ![]u8 {
     const file = try std.fs.cwd().openFile(fileName, .{});
     const contents = try file.readToEndAlloc(allocator, (try file.stat()).size);
     return contents;
+}
+
+test {
+    std.testing.refAllDeclsRecursive(@This());
 }

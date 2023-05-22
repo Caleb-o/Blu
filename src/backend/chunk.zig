@@ -2,9 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
-const root = @import("root");
-const Value = root.value.Value;
-const ByteCode = root.bytecode.ByteCode;
+const Value = @import("../runtime/value.zig").Value;
+const ByteCode = @import("../backend/bytecode.zig").ByteCode;
 
 /// A chunk is a compiled object that defines code within functions
 /// or other scoped types that may require its own chunk.

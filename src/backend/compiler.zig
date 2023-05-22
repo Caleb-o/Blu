@@ -1,19 +1,18 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const root = @import("root");
-const debug = root.debug;
+const debug = @import("../debug.zig");
 const ByteCode = @import("bytecode.zig").ByteCode;
-const Value = root.value.Value;
-const Chunk = root.chunk.Chunk;
-const Object = root.object.Object;
-const VM = root.vm.VM;
-const errors = root.errors;
+const Chunk = @import("chunk.zig").Chunk;
+const Value = @import("../runtime/value.zig").Value;
+const Object = @import("../runtime/object.zig").Object;
+const VM = @import("../runtime/vm.zig").VM;
+const errors = @import("../errors.zig");
 const CompilerError = errors.CompilerError;
 
-const ast = root.ast;
+const ast = @import("../frontend/nodes/ast.zig");
 const Ast = ast.AstNode;
-const Token = root.lexer.Token;
+const Token = @import("../frontend/lexer.zig").Token;
 
 const scopeCompiler = @import("scopeCompiler.zig");
 const ScopeCompiler = scopeCompiler.ScopeCompiler;
@@ -22,7 +21,7 @@ const ScopeKind = scopeCompiler.ScopeKind;
 const locals = @import("locals.zig");
 const Local = locals.Local;
 const LocalTable = locals.LocalTable;
-const BindingKind = root.ast.BindingKind;
+const BindingKind = ast.BindingKind;
 
 pub const Compiler = struct {
     scopeComp: *ScopeCompiler,
@@ -155,7 +154,7 @@ pub const Compiler = struct {
     fn makeConstant(self: *Self, token: *Token, value: Value) !u8 {
         var constant = self.currentChunk().addConstant(value) catch {
             errors.errorWithToken(token, "Compiler", "Too many constants in one chunk.");
-            return 0;
+            return CompilerError.TooManyConstants;
         };
 
         return @intCast(u8, constant);
@@ -250,7 +249,8 @@ pub const Compiler = struct {
             getOp = .GetLocal;
         } else {
             // TODO: Upvalue
-            std.debug.panic("UPVALUE\n", .{});
+            errors.errorWithToken(&node.token, "Compiler", "Upvalue");
+            return CompilerError.Unimplemented;
         }
 
         if (self.canAssign) {

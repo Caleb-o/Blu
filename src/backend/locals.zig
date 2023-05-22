@@ -2,11 +2,10 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
-const root = @import("root");
-const errors = root.errors;
-const Token = root.lexer.Token;
+const errors = @import("../errors.zig");
+const Token = @import("../frontend/lexer.zig").Token;
 
-const BindingKind = root.ast.BindingKind;
+const BindingKind = @import("../frontend/nodes/ast.zig").BindingKind;
 const CompilerError = errors.CompilerError;
 
 pub const Local = struct {

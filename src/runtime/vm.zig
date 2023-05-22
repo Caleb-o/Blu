@@ -2,15 +2,14 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const FixedBufferAllocator = std.heap.FixedBufferAllocator;
 const ArrayList = std.ArrayList;
-const root = @import("root");
 
-const ByteCode = root.bytecode.ByteCode;
-const Chunk = root.chunk.Chunk;
+const ByteCode = @import("../backend/bytecode.zig").ByteCode;
+const Chunk = @import("../backend/chunk.zig").Chunk;
 const value = @import("value.zig");
 const Value = value.Value;
 const ValueKind = value.ValueKind;
 const Object = @import("object.zig").Object;
-const Error = root.errors;
+const Error = @import("../errors.zig");
 const RuntimeError = Error.RuntimeError;
 const Table = @import("table.zig");
 
