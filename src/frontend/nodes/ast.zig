@@ -13,6 +13,7 @@ pub const Identifier = identifier.IdentifierNode;
 pub const Assignment = @import("assignment.zig").AssignmentNode;
 pub const ParameterList = @import("parameterList.zig").ParameterListNode;
 pub const FunctionCall = @import("functionCall.zig").FunctionCallNode;
+pub const Out = @import("out.zig").OutNode;
 pub const FunctionDef = @import("functionDefinition.zig").FunctionDefinitionNode;
 pub const Return = @import("return.zig").ReturnNode;
 pub const ExpressionStmt = @import("expressionStmt.zig").ExpressionStmtNode;
@@ -27,6 +28,7 @@ pub const AstNode = union(enum) {
     parameterList: *ParameterList,
     functionDef: *FunctionDef,
     functionCall: *FunctionCall,
+    out: *Out,
     ret: *Return,
     expressionStmt: *ExpressionStmt,
 
@@ -63,6 +65,10 @@ pub const AstNode = union(enum) {
 
     pub inline fn fromFunctionCall(node: *FunctionCall) Self {
         return .{ .functionCall = node };
+    }
+
+    pub inline fn fromOut(node: *Out) Self {
+        return .{ .out = node };
     }
 
     pub inline fn fromFunctionDef(node: *FunctionDef) Self {
@@ -108,6 +114,10 @@ pub const AstNode = union(enum) {
 
     pub inline fn isFunctionCall(self: *Self) bool {
         return self.* == .functionCall;
+    }
+
+    pub inline fn isOut(self: *Self) bool {
+        return self.* == .out;
     }
 
     pub inline fn isFunctionDef(self: *Self) bool {
@@ -163,6 +173,11 @@ pub const AstNode = union(enum) {
         return self.functionCall;
     }
 
+    pub fn asOut(self: *Self) *Out {
+        std.debug.assert(self.isOut());
+        return self.out;
+    }
+
     pub fn asFunctionDef(self: *Self) *FunctionDef {
         std.debug.assert(self.isFunctionDef());
         return self.functionDef;
@@ -188,6 +203,7 @@ pub const AstNode = union(enum) {
             .assignment => self.asAssignment().deinit(allocator),
             .parameterList => self.asParameterList().deinit(allocator),
             .functionCall => self.asFunctionCall().deinit(allocator),
+            .out => self.asOut().deinit(allocator),
             .functionDef => self.asFunctionDef().deinit(allocator),
             .ret => self.asReturn().deinit(allocator),
             .expressionStmt => self.asExpressionStmt().deinit(allocator),
@@ -247,7 +263,16 @@ pub const AstNode = union(enum) {
             },
             .functionCall => |v| {
                 std.debug.print("(", .{});
-                v.lhs.print();
+                for (v.arguments.items, 0..) |*item, idx| {
+                    item.print();
+                    if (idx < v.list.items.len - 1) {
+                        std.debug.print(" ", .{});
+                    }
+                }
+                std.debug.print(")", .{});
+            },
+            .out => |v| {
+                std.debug.print("(out ", .{});
                 for (v.arguments.items, 0..) |*item, idx| {
                     item.print();
                     if (idx < v.list.items.len - 1) {

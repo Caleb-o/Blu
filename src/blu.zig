@@ -48,7 +48,6 @@ fn parseAndGo(source: []const u8) !void {
     defer vm.deinit();
 
     var compiler = Compiler.init(&vm);
-    defer compiler.deinit();
 
     const func = try compiler.run(root);
     const result = try vm.setupAndRun(func);

@@ -91,6 +91,7 @@ pub const VM = struct {
         };
 
         const result = self.run() catch {
+            // self.runtimeError("Failed to run\n");
             return .RuntimeError;
         };
 
@@ -108,7 +109,7 @@ pub const VM = struct {
     }
 
     inline fn resetStack(self: *Self) void {
-        self.stack.clearAndFree();
+        self.stack.clearRetainingCapacity();
     }
 
     fn freeObjects(self: *Self) void {
@@ -161,7 +162,20 @@ pub const VM = struct {
         self.runtimeError(msg);
     }
 
-    inline fn captureUpvalue(self: *Self, index: usize) !*Object.Upvalue {
+    fn captureUpvalue(self: *Self, index: usize) RuntimeError!*Object.Upvalue {
+        if (index >= self.stack.items.len) {
+            const frame = self.currentFrame();
+            std.debug.panic(
+                "Trying to capture upvalue at index {d} out of {d} at operation '{s}':{d}\n",
+                .{
+                    index,
+                    self.stack.items.len,
+                    frame.closure.function.getIdentifier(),
+                    frame.ip,
+                },
+            );
+        }
+
         const val = &self.stack.items[index];
         return try Object.Upvalue.create(self, val);
     }
@@ -185,7 +199,7 @@ pub const VM = struct {
         };
     }
 
-    fn call(self: *Self, closure: *Object.Closure, argCount: usize) !bool {
+    inline fn call(self: *Self, closure: *Object.Closure, argCount: usize) !bool {
         if (closure.function.arity != argCount) {
             try self.runtimeErrorAlloc(
                 "Function '{s}' expected {d} arguments, but received {d}.",
@@ -216,6 +230,18 @@ pub const VM = struct {
                     const function = val.asObject().asFunction();
                     const closure = try Object.Closure.create(self, function);
                     try self.push(Value.fromObject(&closure.object));
+
+                    for (closure.upvalues) |*upvalue| {
+                        const isLocal = self.readByte() != 0;
+                        const index = self.readByte();
+
+                        const frame = self.currentFrame();
+                        if (isLocal) {
+                            upvalue.* = try self.captureUpvalue(frame.slotStart + index);
+                        } else {
+                            upvalue.* = frame.closure.upvalues[index];
+                        }
+                    }
                 },
 
                 .Call => {
@@ -252,13 +278,21 @@ pub const VM = struct {
                 .GetUpvalue => {
                     const slot = @intCast(usize, self.readByte());
                     const frame = self.currentFrame();
-                    try self.push(frame.closure.upvalues.items[slot].location.*);
+                    std.debug.print("Getting at slot {d}:'{s}'\n", .{
+                        slot,
+                        frame.closure.function.getIdentifier(),
+                    });
+                    try self.push(frame.closure.upvalues[slot].location.*);
                 },
 
                 .SetUpvalue => {
                     const slot = @intCast(usize, self.readByte());
                     const frame = self.currentFrame();
-                    frame.closure.upvalues.items[slot].location.* = self.peek(0);
+                    std.debug.print("Setting at slot {d}:'{s}'\n", .{
+                        slot,
+                        frame.closure.function.getIdentifier(),
+                    });
+                    frame.closure.upvalues[slot].location.* = self.peek(0);
                 },
 
                 .Add => try self.binaryOp('+'),
@@ -297,8 +331,9 @@ pub const VM = struct {
                     try self.push(list);
                 },
 
-                .Puts => {
+                .Out => {
                     const count = @intCast(usize, self.readByte());
+                    std.debug.print("OUT: ", .{});
 
                     if (count > 0) {
                         for (0..count) |idx| {
@@ -363,12 +398,12 @@ pub const VM = struct {
         return val.asObject().asString();
     }
 
-    pub inline fn push(self: *Self, val: Value) RuntimeError!void {
-        if (self.stack.items.len == std.math.maxInt(u8)) {
+    pub fn push(self: *Self, val: Value) RuntimeError!void {
+        if (self.stack.items.len >= std.math.maxInt(u8)) {
             self.runtimeError("Stack overflow");
             return RuntimeError.StackOverflow;
         }
-        _ = try self.stack.append(val);
+        try self.stack.append(val);
     }
 
     pub inline fn peek(self: *Self, distance: i32) Value {

@@ -213,6 +213,7 @@ pub const Object = struct {
         arity: u8,
         chunk: Chunk,
         identifier: ?*String,
+        upvalues: u8,
 
         pub fn create(vm: *VM) !*Function {
             const object = try Self.allocate(vm, Function, .Function);
@@ -220,6 +221,7 @@ pub const Object = struct {
             func.arity = 0;
             func.identifier = null;
             func.chunk = Chunk.init(vm.allocator);
+            func.upvalues = 0;
 
             return func;
         }
@@ -243,18 +245,18 @@ pub const Object = struct {
         object: Self,
         function: *Function,
         // Non-owning
-        upvalues: ArrayList(*Upvalue),
+        upvalues: []*Upvalue,
 
         pub fn create(vm: *VM, function: *Function) !*Closure {
             const object = try Self.allocate(vm, Closure, .Closure);
             const closure = object.asClosure();
             closure.function = function;
-            closure.upvalues = ArrayList(*Upvalue).init(vm.allocator);
+            closure.upvalues = try vm.allocator.alloc(*Upvalue, @intCast(usize, function.upvalues));
             return closure;
         }
 
         pub inline fn destroy(self: *Closure, vm: *VM) void {
-            self.upvalues.deinit();
+            vm.allocator.free(self.upvalues);
             self.function.destroy(vm);
             vm.allocator.destroy(self);
         }

@@ -71,6 +71,7 @@ pub const TokenKind = enum {
     Recursive,
     Then,
     While,
+    Out,
 
     Artificial,
     Error,
@@ -317,6 +318,7 @@ pub const Lexer = struct {
             },
             'o' => if (self.start.len == 1) .Identifier else return switch (self.start[1]) {
                 'b' => self.checkKeyword(2, "ject", .Object),
+                'u' => self.checkKeyword(2, "t", .Out),
                 'r' => if (self.start.len == 2) .Or else .Identifier,
                 else => .Identifier,
             },

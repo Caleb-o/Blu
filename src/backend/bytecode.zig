@@ -39,7 +39,7 @@ pub const ByteCode = enum(u8) {
     False,
     IntoList, // Count
 
-    Puts,
+    Out,
     DontUse,
 
     const Self = @This();
@@ -82,7 +82,7 @@ pub const ByteCode = enum(u8) {
             .True => simpleInstruction("OP_TRUE", offset),
             .False => simpleInstruction("OP_FALSE", offset),
 
-            .Puts => byteInstruction("OP_PUTS", offset, chunk),
+            .Out => byteInstruction("OP_OUT", offset, chunk),
             .Not => simpleInstruction("OP_NOT", offset),
             .Negate => simpleInstruction("OP_NEGATE", offset),
             .Return => simpleInstruction("OP_RETURN", offset),
@@ -104,7 +104,7 @@ pub const ByteCode = enum(u8) {
 
     fn constantInstruction(tag: []const u8, offset: u32, chunk: *Chunk) u32 {
         const index = chunk.code.items[offset + 1];
-        std.debug.print("{s:<16} -- '", .{tag});
+        std.debug.print("{s:<16} -- {d} '", .{ tag, index });
         chunk.constants.items[@intCast(usize, index)].print();
         std.debug.print("'\n", .{});
         return offset + 2;
@@ -112,13 +112,30 @@ pub const ByteCode = enum(u8) {
 
     fn closureInstruction(offset: u32, chunk: *Chunk) u32 {
         const index = chunk.code.items[offset + 1];
-        std.debug.print("{s:<16} -- '", .{"OP_CLOSURE"});
+        std.debug.print("{s:<16} -- {d} '", .{ "OP_CLOSURE", index });
 
         var val = chunk.constants.items[@intCast(usize, index)];
 
         val.print();
         std.debug.print("'\n", .{});
 
-        return offset + 2;
+        const function = val.asObject().asFunction();
+        const count = @intCast(usize, function.upvalues);
+
+        var idx: usize = offset + 2;
+        while (idx <= offset + (count * 2)) : (idx += 2) {
+            const isLocal = chunk.code.items[idx];
+            const localIdx = chunk.code.items[idx + 1];
+            std.debug.print(
+                "{d:0>4}  |                    {s} {d}\n",
+                .{
+                    idx,
+                    if (isLocal == 1) "local" else "upvalue",
+                    localIdx,
+                },
+            );
+        }
+
+        return offset + 2 + @intCast(u32, count * 2);
     }
 };

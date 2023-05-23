@@ -20,13 +20,11 @@ const UpValue = scopeCompiler.Upvalue;
 const ScopeKind = scopeCompiler.ScopeKind;
 const locals = @import("locals.zig");
 const Local = locals.Local;
-const LocalTable = locals.LocalTable;
 const BindingKind = ast.BindingKind;
 
 pub const Compiler = struct {
     scopeComp: *ScopeCompiler,
     vm: *VM,
-    locals: LocalTable,
     canAssign: bool,
 
     const Self = @This();
@@ -35,13 +33,8 @@ pub const Compiler = struct {
         return .{
             .scopeComp = undefined,
             .vm = vm,
-            .locals = LocalTable.init(vm.allocator),
             .canAssign = false,
         };
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.locals.deinit();
     }
 
     pub fn run(self: *Self, rootNode: Ast) !*Object.Function {
@@ -54,7 +47,7 @@ pub const Compiler = struct {
 
     // ====== UTILITIES
     inline fn newScopeCompiler(self: *Self, kind: ScopeKind) !ScopeCompiler {
-        return ScopeCompiler.init(self.vm, self.locals.depth + 1, kind, self.scopeComp);
+        return ScopeCompiler.init(self.vm, self.scopeComp.depth + 1, kind, self.scopeComp);
     }
 
     fn setCompiler(self: *Self, compiler: *ScopeCompiler, id: ?[]const u8) !void {
@@ -75,14 +68,14 @@ pub const Compiler = struct {
     }
 
     pub inline fn beginScope(self: *Self) CompilerError!void {
-        if (self.locals.depth == std.math.maxInt(u8)) {
+        if (self.scopeComp.depth == std.math.maxInt(u8)) {
             return CompilerError.TooManyScopes;
         }
-        self.locals.depth += 1;
+        self.scopeComp.depth += 1;
     }
 
     pub inline fn endScope(self: *Self) void {
-        self.locals.depth -= 1;
+        self.scopeComp.depth -= 1;
     }
 
     /// Emit return and close the current compiler
@@ -104,19 +97,30 @@ pub const Compiler = struct {
     }
 
     fn declareVariable(self: *Self, identifier: *Token, kind: BindingKind) !void {
-        try self.locals.add(.{
+        if (self.scopeComp.depth == 0) return;
+
+        for (0..self.scopeComp.locals.items.len) |idx| {
+            const local = self.scopeComp.locals.items[self.scopeComp.locals.items.len - 1 - idx];
+            if (ScopeCompiler.identifiersEqual(identifier, &local.identifier)) {
+                errors.errorWithToken(identifier, "Compiler", "Already a variable defined with this name");
+                return CompilerError.LocalDefined;
+            }
+        }
+
+        try self.scopeComp.addLocal(identifier, .{
             .identifier = identifier.*,
             .kind = kind,
             .initialised = false,
-            .depth = self.locals.depth,
-            .index = self.scopeComp.locals,
+            .depth = self.scopeComp.depth,
+            .index = @intCast(u8, self.scopeComp.localCount()),
         });
-        self.scopeComp.locals += 1;
     }
 
     fn initialiseVariable(self: *Self, identifier: *Token) !void {
-        const local = try self.locals.findErr(identifier);
-        local.initialised = true;
+        if (self.scopeComp.depth == 0) return;
+        if (self.scopeComp.getLocal(identifier)) |local| {
+            local.initialised = true;
+        }
     }
 
     // ====== CHUNK & EMITTERS
@@ -172,37 +176,44 @@ pub const Compiler = struct {
             .binding => |n| try self.letBinding(n),
             .identifier => |n| try self.identifierExpr(n),
             .assignment => |n| try self.assignment(n),
+            .functionCall => |n| try self.functionCall(n),
 
             .literal => |n| try self.literal(n),
             .binary => |n| try self.binary(n),
             .body => |n| try self.body(n),
 
-            .expressionStmt => |n| try self.visit(n.inner),
+            .out => |n| try self.out(n),
+
+            .expressionStmt => |n| {
+                try self.visit(n.inner);
+                try self.emitOp(.Pop);
+            },
 
             else => std.debug.panic("UNIMPLEMENTED: '{s}'\n", .{@tagName(node)}),
         }
     }
 
     fn letBinding(self: *Self, node: *ast.LetBinding) !void {
-        try self.declareVariable(&node.token, node.kind);
-
         if (node.rhs.isFunctionDef()) {
             try self.functionDef(&node.token, node.rhs.asFunctionDef());
         } else {
             try self.visit(node.rhs);
         }
 
+        try self.declareVariable(&node.token, node.kind);
         try self.initialiseVariable(&node.token);
 
-        if (self.locals.depth == 0) {
+        // Since globals are in a table, this needs to be emitted
+        // There is no need to set locals in a declaration
+        if (self.scopeComp.depth == 0) {
             try self.emitOpByte(.SetGlobal, try self.identifierConstant(&node.token));
-        } else {
-            try self.emitOpByte(.SetLocal, self.scopeComp.locals - 1);
         }
     }
 
     fn functionDef(self: *Self, identifier: *Token, node: *ast.FunctionDef) !void {
         var scopeComp = try self.newScopeCompiler(.Function);
+        defer scopeComp.deinit();
+
         try self.setCompiler(&scopeComp, identifier.lexeme);
         try self.beginScope();
 
@@ -220,37 +231,53 @@ pub const Compiler = struct {
         }
 
         self.endScope();
-        const func = try self.endCompiler();
+        const function = try self.endCompiler();
 
         try self.emitOpByte(.Closure, try self.makeConstant(
             identifier,
-            Value.fromObject(&func.object),
+            Value.fromObject(&function.object),
         ));
+
+        for (scopeComp.upvalues.items) |*upvalue| {
+            try self.emitBytes(
+                if (upvalue.isLocal) 1 else 0,
+                upvalue.index,
+            );
+        }
+    }
+
+    fn resolveUpvalue(self: *Self, comp: *ScopeCompiler, identifier: *Token) !?u8 {
+        if (comp.enclosing) |enclosing| {
+            if (enclosing.findLocal(identifier)) |local| {
+                return try comp.addUpvalue(identifier, local, true);
+            }
+
+            if (try self.resolveUpvalue(enclosing, identifier)) |upvalue| {
+                return try comp.addUpvalue(identifier, upvalue, false);
+            }
+        }
+        return null;
     }
 
     fn identifierExpr(self: *Self, node: *ast.Identifier) !void {
-        const maybeLocal = self.locals.find(&node.token);
-        if (maybeLocal == null) {
-            errors.errorWithToken(&node.token, "Compiler", "Undefined local");
-            return CompilerError.UndefinedLocal;
-        }
-
-        const local = maybeLocal.?;
         var setOp: ByteCode = undefined;
         var getOp: ByteCode = undefined;
-        var index: u8 = local.index;
+        var index: u8 = undefined;
 
-        if (local.depth == 0) {
+        const maybeLocal = self.scopeComp.findLocal(&node.token);
+
+        if (self.scopeComp.depth > 0 and maybeLocal != null) {
+            setOp = .SetLocal;
+            getOp = .GetLocal;
+            index = maybeLocal.?;
+        } else if (try self.resolveUpvalue(self.scopeComp, &node.token)) |upvalue| {
+            setOp = .SetUpvalue;
+            getOp = .GetUpvalue;
+            index = upvalue;
+        } else if (self.scopeComp.depth == 0) {
             setOp = .SetGlobal;
             getOp = .GetGlobal;
             index = try self.identifierConstant(&node.token);
-        } else if (local.depth >= self.scopeComp.depth) {
-            setOp = .SetLocal;
-            getOp = .GetLocal;
-        } else {
-            // TODO: Upvalue
-            errors.errorWithToken(&node.token, "Compiler", "Upvalue");
-            return CompilerError.Unimplemented;
         }
 
         if (self.canAssign) {
@@ -267,6 +294,22 @@ pub const Compiler = struct {
         self.canAssign = false;
 
         // TODO: Handle different types of assignment
+    }
+
+    fn functionCall(self: *Self, node: *ast.FunctionCall) !void {
+        for (node.arguments.items) |arg| {
+            try self.visit(arg);
+        }
+
+        if (node.arguments.items.len == std.math.maxInt(u8)) {
+            errors.errorWithToken(&node.token, "Compiler", "Too many arguments in call to out");
+            return CompilerError.TooManyArguments;
+        }
+
+        try self.emitOpByte(.Call, @intCast(
+            u8,
+            node.arguments.items.len,
+        ));
     }
 
     fn literal(self: *Self, node: *ast.Literal) !void {
@@ -299,5 +342,21 @@ pub const Compiler = struct {
         for (node.inner.items) |n| {
             try self.visit(n);
         }
+    }
+
+    fn out(self: *Self, node: *ast.Out) !void {
+        for (node.arguments.items) |arg| {
+            try self.visit(arg);
+        }
+
+        if (node.arguments.items.len == std.math.maxInt(u8)) {
+            errors.errorWithToken(&node.token, "Compiler", "Too many arguments in call to out");
+            return CompilerError.TooManyArguments;
+        }
+
+        try self.emitOpByte(.Out, @intCast(
+            u8,
+            node.arguments.items.len,
+        ));
     }
 };

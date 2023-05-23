@@ -286,9 +286,23 @@ pub const Parser = struct {
         ));
     }
 
+    fn outStatement(self: *Self) !Ast {
+        const lhs = self.current;
+        self.advance();
+        try self.consume(.LeftParen, "Expect '(' after out");
+
+        const arguments = try self.argumentList();
+        return Ast.fromOut(try ast.Out.init(
+            self.allocator,
+            lhs,
+            arguments,
+        ));
+    }
+
     fn statement(self: *Self) !Ast {
         const stmt = switch (self.current.kind) {
             .Return => try self.returnStatement(),
+            .Out => try self.outStatement(),
             else => try self.expressionStatement(),
         };
         try self.consume(.Semicolon, "Expect ';' after statement");

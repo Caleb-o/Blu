@@ -7,6 +7,7 @@ const Token = @import("../frontend/lexer.zig").Token;
 
 const BindingKind = @import("../frontend/nodes/ast.zig").BindingKind;
 const CompilerError = errors.CompilerError;
+const ScopeCompiler = @import("scopeCompiler.zig").ScopeCompiler;
 
 pub const Local = struct {
     // Use of token to report error location
@@ -47,67 +48,5 @@ pub const Local = struct {
             .depth = 0,
             .index = 0,
         };
-    }
-};
-
-pub const LocalTable = struct {
-    locals: ArrayList(Local),
-    depth: u8,
-
-    const Self = @This();
-
-    pub fn init(allocator: Allocator) Self {
-        return .{
-            .locals = ArrayList(Local).init(allocator),
-            .depth = 0,
-        };
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.locals.deinit();
-    }
-
-    pub fn add(self: *Self, local: Local) !void {
-        for (self.locals.items) |*item| {
-            if (item.depth < self.depth) break;
-
-            if (local.depth == item.depth and identifiersEqual(&local.identifier, &item.identifier)) {
-                errors.errorWithToken(&local.identifier, "Compiler", "Local is already defined");
-                return CompilerError.LocalDefined;
-            }
-        }
-
-        try self.locals.append(local);
-    }
-
-    pub fn find(self: *Self, identifier: *Token) ?*Local {
-        for (self.locals.items) |*item| {
-            if (identifiersEqual(identifier, &item.identifier)) {
-                return item;
-            }
-        }
-        return null;
-    }
-
-    pub fn findErr(self: *Self, identifier: *Token) !*Local {
-        if (self.find(identifier)) |local| {
-            return local;
-        }
-        return CompilerError.UndefinedLocal;
-    }
-
-    pub fn lastLocal(self: *Self) !u8 {
-        if (self.locals.items.len >= std.math.maxInt(u8)) {
-            return CompilerError.TooManyLocals;
-        }
-        return @intCast(u8, self.locals.items.len);
-    }
-
-    pub inline fn has(self: *Self, identifier: *Token) bool {
-        return self.find(identifier) != null;
-    }
-
-    inline fn identifiersEqual(a: *const Token, b: *const Token) bool {
-        return std.mem.eql(u8, a.lexeme, b.lexeme);
     }
 };
