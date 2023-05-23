@@ -6,7 +6,9 @@ const Arena = std.heap.ArenaAllocator;
 const debug = @import("debug.zig");
 const Parser = @import("frontend/parser.zig").Parser;
 const Compiler = @import("backend/compiler.zig").Compiler;
-const VM = @import("runtime/vm.zig").VM;
+const _VM = @import("runtime/vm.zig");
+const VM = _VM.VM;
+const InterpretErr = _VM.InterpretErr;
 
 pub fn run() !void {
     var alloc = GPA{};
@@ -50,7 +52,10 @@ fn parseAndGo(source: []const u8) !void {
     var compiler = Compiler.init(&vm);
 
     const func = try compiler.run(root);
-    const result = try vm.setupAndRun(func);
+    const result = vm.setupAndRun(func) catch |err| {
+        std.debug.print("Run err: {s}\n", .{@errorName(err)});
+        return InterpretErr.InvalidOperation;
+    };
 
     if (debug.PRINT_CODE) {
         std.debug.print("Run result: {s}\n", .{@tagName(result)});

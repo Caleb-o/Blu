@@ -16,34 +16,6 @@ pub const Local = struct {
     initialised: bool,
     captured: bool,
     depth: u8,
-
-    const Self = @This();
-
-    pub fn create() Self {
-        return .{
-            .name = undefined,
-            .kind = BindingKind.None,
-            .initialised = false,
-            .captured = false,
-            .depth = 0,
-        };
-    }
-
-    // Some locals require an artificial token, as a token does not exist
-    // in the context of the call
-    pub fn artificial(identifier: []const u8) Self {
-        return .{
-            .name = Token{
-                .kind = .String,
-                .lexeme = identifier,
-                .column = 1,
-                .line = 1,
-            },
-            .kind = BindingKind.None,
-            .initialised = false,
-            .depth = 0,
-        };
-    }
 };
 
 pub const LocalTable = struct {

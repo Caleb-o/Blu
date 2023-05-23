@@ -251,7 +251,7 @@ pub const Parser = struct {
             try self.consume(.RightParen, "Expect ')' after '(' in function parameter list");
         } else if (!self.check(.Equal)) {
             while (self.match(.Identifier)) {
-                try list.append(try self.identifier());
+                try list.append(Ast.fromIdentifier(try ast.Identifier.init(self.allocator, self.previous)));
             }
         }
 

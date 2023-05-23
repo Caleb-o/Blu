@@ -27,6 +27,7 @@ pub const RuntimeError = error{
     StackOverflow,
     StackUnderflow,
     InvalidCallOnValue,
+    UndefinedGlobal,
 } || std.mem.Allocator.Error;
 
 pub fn errorWithToken(token: *const Token, where: []const u8, msg: []const u8) void {

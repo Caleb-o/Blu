@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 const FixedBufferAllocator = std.heap.FixedBufferAllocator;
 const ArrayList = std.ArrayList;
 
+const debug = @import("../debug.zig");
 const ByteCode = @import("../backend/bytecode.zig").ByteCode;
 const Chunk = @import("../backend/chunk.zig").Chunk;
 const value = @import("value.zig");
@@ -93,7 +94,7 @@ pub const VM = struct {
         };
 
         const result = self.run() catch {
-            // self.runtimeError("Failed to run\n");
+            self.runtimeError("Failed to run\n");
             return .RuntimeError;
         };
 
@@ -235,13 +236,15 @@ pub const VM = struct {
         std.debug.assert(self.stack.items.len >= 1);
         self.pushFrame(CallFrame.create(
             closure,
-            self.stack.items.len - 1 - argCount,
+            self.stack.items.len - argCount,
         ));
         return true;
     }
 
     fn run(self: *Self) !InterpretResult {
-        defer std.debug.print("\n", .{});
+        if (debug.PRINT_CODE) {
+            defer std.debug.print("\n", .{});
+        }
         while (true) {
             const instruction = self.readByte();
             try switch (@intToEnum(ByteCode, instruction)) {
@@ -291,7 +294,11 @@ pub const VM = struct {
                         continue;
                     }
 
-                    try self.push(Value.fromNil());
+                    try self.runtimeErrorAlloc(
+                        "Unknown global '{s}'",
+                        .{name.chars},
+                    );
+                    return RuntimeError.UndefinedGlobal;
                 },
 
                 .SetGlobal => {
@@ -396,14 +403,14 @@ pub const VM = struct {
                     var result = try self.pop();
                     const oldFrame = self.frames.pop();
 
-                    try self.closeUpvalues(&self.stack.items[oldFrame.slotStart]);
+                    try self.closeUpvalues(&self.stack.items[oldFrame.slotStart - 1]);
 
                     if (self.frames.items.len == 0) {
                         // Script callframe - finish
                         return .Ok;
                     }
 
-                    try self.stack.resize(oldFrame.slotStart);
+                    try self.stack.resize(oldFrame.slotStart + 1);
                     try self.push(result);
                 },
                 else => unreachable,
@@ -448,8 +455,15 @@ pub const VM = struct {
         return self.stack.pop();
     }
 
-    fn assertTypesEqual(lhs: *Value, rhs: *Value) !void {
+    fn assertTypesEqual(self: *Self, lhs: *Value, rhs: *Value) !void {
         if (!lhs.compare(rhs)) {
+            self.runtimeError(
+                "Left-hand side type did not match right-hand side",
+            );
+            lhs.print();
+            std.debug.print(" ", .{});
+            rhs.print();
+            std.debug.print("\n", .{});
             return InterpretErr.InvalidOperation;
         }
     }
@@ -471,7 +485,7 @@ pub const VM = struct {
         var lhs = try self.pop();
 
         // FIXME: Temporary
-        try assertTypesEqual(&lhs, &rhs);
+        try self.assertTypesEqual(&lhs, &rhs);
 
         switch (op) {
             '+' => {

@@ -231,8 +231,15 @@ pub const Compiler = struct {
         try self.beginScope();
 
         // VISIT PARAMETER list
-        if (node.parameters) |params| {
-            _ = params;
+        if (node.parameters) |*params| {
+            const list = params.asParameterList();
+            scopeComp.function.arity = @intCast(u8, list.list.items.len);
+
+            for (list.list.items) |*param| {
+                const id = param.asIdentifier();
+                try self.declareVariable(&id.token, .None);
+                try self.initialiseVariable(&id.token);
+            }
         }
 
         if (node.body.isBlock()) {
@@ -359,17 +366,17 @@ pub const Compiler = struct {
     }
 
     fn returnStatement(self: *Self, node: *ast.Return) !void {
-        if (self.scopeComp.depth == 0) {
+        if (self.scopeComp.kind == .Script) {
             errors.errorWithToken(&node.token, "Compiler", "Cannot return from global scope");
             return CompilerError.ReturnFromGlobal;
         }
 
         if (node.expression) |value| {
             try self.visit(value);
+            try self.emitOp(.Return);
         } else {
-            try self.emitOp(.Nil);
+            try self.emitReturn();
         }
-        try self.emitOp(.Return);
     }
 
     fn out(self: *Self, node: *ast.Out) !void {
