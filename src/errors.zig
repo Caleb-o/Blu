@@ -18,6 +18,7 @@ pub const CompilerError = error{
     UndefinedLocal,
     UnknownLocal,
     LocalDefined,
+    ReturnFromGlobal,
 
     Unimplemented,
 } || std.mem.Allocator.Error || std.fmt.ParseFloatError;

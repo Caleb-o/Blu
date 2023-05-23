@@ -14,6 +14,7 @@ pub const Local = struct {
     identifier: Token,
     kind: BindingKind,
     initialised: bool,
+    captured: bool,
     depth: u8,
 
     const Self = @This();
@@ -23,6 +24,7 @@ pub const Local = struct {
             .name = undefined,
             .kind = BindingKind.None,
             .initialised = false,
+            .captured = false,
             .depth = 0,
         };
     }
@@ -41,5 +43,63 @@ pub const Local = struct {
             .initialised = false,
             .depth = 0,
         };
+    }
+};
+
+pub const LocalTable = struct {
+    data: ArrayList(Local),
+    depth: u8,
+
+    const Self = @This();
+
+    pub fn init(allocator: Allocator) Self {
+        return .{
+            .data = ArrayList(Local).init(allocator),
+            .depth = 0,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.data.deinit();
+    }
+
+    pub fn findLocal(self: *Self, token: *Token) ?u8 {
+        for (0..self.data.items.len) |idx| {
+            const local = self.data.items[self.data.items.len - 1 - idx];
+            if (identifiersEqual(token, &local.identifier)) {
+                return @intCast(u8, self.data.items.len - 1 - idx);
+            }
+        }
+        return null;
+    }
+
+    pub fn getLocal(self: *Self, token: *Token) ?*Local {
+        for (0..self.data.items.len) |idx| {
+            const local = &self.data.items[self.data.items.len - 1 - idx];
+            if (identifiersEqual(token, &local.identifier)) {
+                return local;
+            }
+        }
+        return null;
+    }
+
+    pub fn addLocal(self: *Self, token: *Token, local: Local) !void {
+        if (self.data.items.len == std.math.maxInt(u8)) {
+            errors.errorWithToken(token, "Compiler", "Too many locals in scope");
+            return CompilerError.TooManyLocals;
+        }
+
+        for (self.data.items) |loc| {
+            if (loc.depth == self.depth and identifiersEqual(token, &loc.identifier)) {
+                errors.errorWithToken(token, "Compiler", "Local already defined");
+                return CompilerError.LocalDefined;
+            }
+        }
+
+        try self.data.append(local);
+    }
+
+    pub inline fn identifiersEqual(a: *const Token, b: *const Token) bool {
+        return std.mem.eql(u8, a.lexeme, b.lexeme);
     }
 };

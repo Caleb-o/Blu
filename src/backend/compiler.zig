@@ -74,8 +74,20 @@ pub const Compiler = struct {
         self.scopeComp.depth += 1;
     }
 
-    pub inline fn endScope(self: *Self) void {
+    pub inline fn endScope(self: *Self) !void {
         self.scopeComp.depth -= 1;
+
+        var currentLocals = &self.scopeComp.locals;
+        while (currentLocals.items.len > 0 and
+            currentLocals.items[currentLocals.items.len - 1].depth > self.scopeComp.depth)
+        {
+            if (currentLocals.items[currentLocals.items.len - 1].captured) {
+                try self.emitOp(.CloseUpvalue);
+            } else {
+                try self.emitOp(.Pop);
+            }
+            _ = currentLocals.pop();
+        }
     }
 
     /// Emit return and close the current compiler
@@ -111,6 +123,7 @@ pub const Compiler = struct {
             .identifier = identifier.*,
             .kind = kind,
             .initialised = false,
+            .captured = false,
             .depth = self.scopeComp.depth,
         });
     }
@@ -180,6 +193,7 @@ pub const Compiler = struct {
             .literal => |n| try self.literal(n),
             .binary => |n| try self.binary(n),
             .body => |n| try self.body(n),
+            .ret => |n| try self.returnStatement(n),
 
             .out => |n| try self.out(n),
 
@@ -229,7 +243,7 @@ pub const Compiler = struct {
             try self.emitOp(.Return);
         }
 
-        self.endScope();
+        try self.endScope();
         const function = try self.endCompiler();
 
         try self.emitOpByte(.Closure, try self.makeConstant(
@@ -248,6 +262,7 @@ pub const Compiler = struct {
     fn resolveUpvalue(self: *Self, comp: *ScopeCompiler, identifier: *Token) !?u8 {
         if (comp.enclosing) |enclosing| {
             if (enclosing.findLocal(identifier)) |local| {
+                enclosing.locals.items[@intCast(usize, local)].captured = true;
                 return try comp.addUpvalue(identifier, local, true);
             }
 
@@ -341,6 +356,20 @@ pub const Compiler = struct {
         for (node.inner.items) |n| {
             try self.visit(n);
         }
+    }
+
+    fn returnStatement(self: *Self, node: *ast.Return) !void {
+        if (self.scopeComp.depth == 0) {
+            errors.errorWithToken(&node.token, "Compiler", "Cannot return from global scope");
+            return CompilerError.ReturnFromGlobal;
+        }
+
+        if (node.expression) |value| {
+            try self.visit(value);
+        } else {
+            try self.emitOp(.Nil);
+        }
+        try self.emitOp(.Return);
     }
 
     fn out(self: *Self, node: *ast.Out) !void {

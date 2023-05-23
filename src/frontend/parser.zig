@@ -85,8 +85,7 @@ pub const Parser = struct {
 
     /// Check if token matches, no consume
     inline fn check(self: *Self, comptime kind: TokenKind) bool {
-        if (self.current.kind != kind) return false;
-        return true;
+        return self.current.kind == kind;
     }
 
     /// Check if token matches any kind, with no consume

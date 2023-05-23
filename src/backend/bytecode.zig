@@ -15,6 +15,7 @@ pub const ByteCode = enum(u8) {
     SetLocal,
     GetUpvalue,
     SetUpvalue,
+    CloseUpvalue,
 
     Not,
     Negate,
@@ -63,6 +64,7 @@ pub const ByteCode = enum(u8) {
 
             .GetUpvalue => byteInstruction("OP_GET_UPVALUE", offset, chunk),
             .SetUpvalue => byteInstruction("OP_SET_UPVALUE", offset, chunk),
+            .CloseUpvalue => simpleInstruction("OP_CLOSE_UPVALUE", offset),
 
             .Add => simpleInstruction("OP_ADD", offset),
             .Sub => simpleInstruction("OP_SUB", offset),
@@ -127,7 +129,7 @@ pub const ByteCode = enum(u8) {
             const isLocal = chunk.code.items[idx];
             const localIdx = chunk.code.items[idx + 1];
             std.debug.print(
-                "{d:0>4}  |                    {s} {d}\n",
+                "{d:0>4}  |             {s} {d}\n",
                 .{
                     idx,
                     if (isLocal == 1) "local" else "upvalue",

@@ -325,7 +325,7 @@ pub const Lexer = struct {
             'r' => if (self.start.len == 1) .Identifier else return switch (self.start[1]) {
                 'e' => if (self.start.len == 2) .Identifier else switch (self.start[2]) {
                     'c' => if (self.start.len == 3) .Recursive else .Identifier,
-                    't' => self.checkKeyword(4, "urn", .Return),
+                    't' => self.checkKeyword(3, "urn", .Return),
                     else => .Identifier,
                 },
                 else => .Identifier,

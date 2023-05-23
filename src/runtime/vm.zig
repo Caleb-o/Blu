@@ -50,6 +50,7 @@ pub const VM = struct {
     frames: ArrayList(CallFrame),
     globals: Table,
     strings: Table,
+    openUpvalues: ?*Object.Upvalue,
     objects: ?*Object,
 
     const Self = @This();
@@ -65,6 +66,7 @@ pub const VM = struct {
             .frames = try ArrayList(CallFrame).initCapacity(allocator, 8),
             .globals = Table.init(allocator),
             .strings = Table.init(allocator),
+            .openUpvalues = null,
             .objects = null,
         };
     }
@@ -162,22 +164,44 @@ pub const VM = struct {
         self.runtimeError(msg);
     }
 
-    fn captureUpvalue(self: *Self, index: usize) RuntimeError!*Object.Upvalue {
-        if (index >= self.stack.items.len) {
-            const frame = self.currentFrame();
-            std.debug.panic(
-                "Trying to capture upvalue at index {d} out of {d} at operation '{s}':{d}\n",
-                .{
-                    index,
-                    self.stack.items.len,
-                    frame.closure.function.getIdentifier(),
-                    frame.ip,
-                },
-            );
+    fn captureUpvalue(self: *Self, local: *Value) RuntimeError!*Object.Upvalue {
+        var prevUpvalue: ?*Object.Upvalue = null;
+        var maybeUpvalue = self.openUpvalues;
+
+        while (maybeUpvalue) |upvalue| {
+            if (@ptrToInt(upvalue.location) <= @ptrToInt(local)) break;
+            prevUpvalue = upvalue;
+            maybeUpvalue = upvalue.next;
         }
 
-        const val = &self.stack.items[index];
-        return try Object.Upvalue.create(self, val);
+        // Check if the value points to the same location in memory
+        if (maybeUpvalue) |upvalue| {
+            if (upvalue.location == local) {
+                return upvalue;
+            }
+        }
+
+        const createdUpvalue = try Object.Upvalue.create(self, local);
+        createdUpvalue.next = maybeUpvalue;
+
+        // Insert into the VM
+        if (prevUpvalue) |p| {
+            p.next = createdUpvalue;
+        } else {
+            self.openUpvalues = createdUpvalue;
+        }
+
+        return createdUpvalue;
+    }
+
+    fn closeUpvalues(self: *Self, last: *Value) !void {
+        while (self.openUpvalues) |openUpvalues| {
+            if (@ptrToInt(openUpvalues.location) < @ptrToInt(last)) break;
+            const upvalue = openUpvalues;
+            upvalue.closed = upvalue.location.*;
+            upvalue.location = &upvalue.closed;
+            self.openUpvalues = upvalue.next;
+        }
     }
 
     fn callObject(self: *Self, object: *Object, argCount: usize) !bool {
@@ -237,7 +261,7 @@ pub const VM = struct {
 
                         const frame = self.currentFrame();
                         if (isLocal) {
-                            upvalue.* = try self.captureUpvalue(frame.slotStart + index);
+                            upvalue.* = try self.captureUpvalue(&self.stack.items[frame.slotStart + index]);
                         } else {
                             upvalue.* = frame.closure.upvalues[index];
                         }
@@ -291,6 +315,11 @@ pub const VM = struct {
                     frame.closure.upvalues[slot].location.* = self.peek(0);
                 },
 
+                .CloseUpvalue => {
+                    try self.closeUpvalues(&self.stack.items[self.stack.items.len - 2]);
+                    _ = try self.pop();
+                },
+
                 .Add => try self.binaryOp('+'),
                 .Sub => try self.binaryOp('-'),
                 .Mul => try self.binaryOp('*'),
@@ -333,7 +362,7 @@ pub const VM = struct {
 
                     if (count > 0) {
                         for (0..count) |idx| {
-                            var val = self.peek(@intCast(i32, idx));
+                            var val = self.peek(@intCast(i32, count - 1 - idx));
                             val.print();
                         }
                         try self.stack.resize(self.stack.items.len - count);
@@ -366,12 +395,16 @@ pub const VM = struct {
                 .Return => {
                     var result = try self.pop();
                     const oldFrame = self.frames.pop();
+
+                    try self.closeUpvalues(&self.stack.items[oldFrame.slotStart]);
+
                     if (self.frames.items.len == 0) {
                         // Script callframe - finish
                         return .Ok;
                     }
+
                     try self.stack.resize(oldFrame.slotStart);
-                    _ = try self.push(result);
+                    try self.push(result);
                 },
                 else => unreachable,
             };

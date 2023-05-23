@@ -288,11 +288,15 @@ pub const Object = struct {
     pub const Upvalue = struct {
         object: Self,
         location: *Value,
+        closed: Value,
+        next: ?*Upvalue,
 
         pub fn create(vm: *VM, location: *Value) !*Upvalue {
             const object = try Self.allocate(vm, Upvalue, .Upvalue);
             const upvalue = object.asUpvalue();
             upvalue.location = location;
+            upvalue.closed = Value.fromNil();
+            upvalue.next = null;
             return upvalue;
         }
 
