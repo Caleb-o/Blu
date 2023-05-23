@@ -57,7 +57,7 @@ pub const ScopeCompiler = struct {
         for (0..self.locals.items.len) |idx| {
             const local = self.locals.items[self.locals.items.len - 1 - idx];
             if (identifiersEqual(token, &local.identifier)) {
-                return local.index;
+                return @intCast(u8, self.locals.items.len - 1 - idx);
             }
         }
         return null;

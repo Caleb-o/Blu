@@ -15,7 +15,6 @@ pub const Local = struct {
     kind: BindingKind,
     initialised: bool,
     depth: u8,
-    index: u8,
 
     const Self = @This();
 
@@ -25,12 +24,7 @@ pub const Local = struct {
             .kind = BindingKind.None,
             .initialised = false,
             .depth = 0,
-            .index = 0,
         };
-    }
-
-    pub inline fn isGlobal(self: *Self) bool {
-        return self.depth == 0;
     }
 
     // Some locals require an artificial token, as a token does not exist
@@ -46,7 +40,6 @@ pub const Local = struct {
             .kind = BindingKind.None,
             .initialised = false,
             .depth = 0,
-            .index = 0,
         };
     }
 };

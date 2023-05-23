@@ -112,7 +112,6 @@ pub const Compiler = struct {
             .kind = kind,
             .initialised = false,
             .depth = self.scopeComp.depth,
-            .index = @intCast(u8, self.scopeComp.localCount()),
         });
     }
 
@@ -203,10 +202,10 @@ pub const Compiler = struct {
         try self.declareVariable(&node.token, node.kind);
         try self.initialiseVariable(&node.token);
 
-        // Since globals are in a table, this needs to be emitted
-        // There is no need to set locals in a declaration
         if (self.scopeComp.depth == 0) {
             try self.emitOpByte(.SetGlobal, try self.identifierConstant(&node.token));
+        } else {
+            try self.emitOpByte(.SetLocal, @intCast(u8, self.scopeComp.localCount() - 1));
         }
     }
 

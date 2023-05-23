@@ -278,10 +278,6 @@ pub const VM = struct {
                 .GetUpvalue => {
                     const slot = @intCast(usize, self.readByte());
                     const frame = self.currentFrame();
-                    std.debug.print("Getting at slot {d}:'{s}'\n", .{
-                        slot,
-                        frame.closure.function.getIdentifier(),
-                    });
                     try self.push(frame.closure.upvalues[slot].location.*);
                 },
 
