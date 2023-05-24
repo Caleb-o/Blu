@@ -52,7 +52,7 @@ const CallFrame = struct {
 
 // The buffer should be a fixed size and live on the
 // *real* stack, so the access is cheap
-var STACK_BUFFER: [256 * @sizeOf(Value)]u8 = undefined;
+var STACK_BUFFER: [512 * @sizeOf(Value)]u8 = undefined;
 
 pub const VM = struct {
     allocator: Allocator,
