@@ -46,10 +46,13 @@ fn parseAndGo(source: []const u8) !void {
 
     var root = try parser.parse();
 
-    var vm = try VM.init(arenaAlloc, arenaAlloc);
+    var vm = VM.create();
+    try vm.init(arenaAlloc, arenaAlloc);
     defer vm.deinit();
 
     var compiler = Compiler.init(&vm);
+    vm.compiler = &compiler;
+    defer vm.compiler = null;
 
     const func = try compiler.run(root);
     const result = vm.setupAndRun(func) catch |err| {

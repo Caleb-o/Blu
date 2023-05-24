@@ -4,6 +4,7 @@ const FixedBufferAllocator = std.heap.FixedBufferAllocator;
 const ArrayList = std.ArrayList;
 
 const debug = @import("../debug.zig");
+const Compiler = @import("../backend/compiler.zig").Compiler;
 const ByteCode = @import("../backend/bytecode.zig").ByteCode;
 const Chunk = @import("../backend/chunk.zig").Chunk;
 const value = @import("value.zig");
@@ -13,6 +14,7 @@ const Object = @import("object.zig").Object;
 const Error = @import("../errors.zig");
 const RuntimeError = Error.RuntimeError;
 const Table = @import("table.zig");
+const GC = @import("gc.zig").GC;
 
 pub const InterpretResult = enum {
     Ok,
@@ -55,11 +57,14 @@ const CallFrame = struct {
 var STACK_BUFFER: [512 * @sizeOf(Value)]u8 = undefined;
 
 pub const VM = struct {
+    gc: GC,
+    compiler: ?*Compiler,
     allocator: Allocator,
     stackAllocator: Allocator,
     errorAllocator: Allocator,
     stack: ArrayList(Value),
     frames: ArrayList(CallFrame),
+    greyList: ArrayList(*Object),
     globals: Table,
     strings: Table,
     openUpvalues: ?*Object.Upvalue,
@@ -67,27 +72,45 @@ pub const VM = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, errorAllocator: Allocator) !VM {
-        var fba = FixedBufferAllocator.init(&STACK_BUFFER);
-        const stackAllocator = fba.allocator();
-        return .{
-            .allocator = allocator,
-            .stackAllocator = stackAllocator,
-            .errorAllocator = errorAllocator,
-            .stack = try ArrayList(Value).initCapacity(stackAllocator, 32),
-            .frames = try ArrayList(CallFrame).initCapacity(allocator, 8),
-            .globals = Table.init(allocator),
-            .strings = Table.init(allocator),
+    pub fn create() Self {
+        return Self{
+            .gc = undefined,
+            .compiler = null,
+            .allocator = undefined,
+            .stackAllocator = undefined,
+            .errorAllocator = undefined,
+            .stack = undefined,
+            .frames = undefined,
+            .greyList = undefined,
+            .globals = undefined,
+            .strings = undefined,
             .openUpvalues = null,
             .objects = null,
         };
     }
 
+    pub fn init(self: *Self, allocator: Allocator, errorAllocator: Allocator) !void {
+        var fba = FixedBufferAllocator.init(&STACK_BUFFER);
+        const stackAllocator = fba.allocator();
+
+        self.gc = GC.init(allocator, self);
+        self.allocator = self.gc.allocator();
+        self.errorAllocator = errorAllocator;
+
+        self.stack = try ArrayList(Value).initCapacity(stackAllocator, 32);
+        self.frames = try ArrayList(CallFrame).initCapacity(allocator, 8);
+        self.greyList = ArrayList(*Object).init(errorAllocator);
+
+        self.globals = Table.init(allocator);
+        self.strings = Table.init(allocator);
+    }
+
     pub fn deinit(self: *Self) void {
+        self.freeObjects();
         self.frames.deinit();
+        self.greyList.deinit();
         self.globals.deinit();
         self.strings.deinit();
-        self.freeObjects();
         self.objects = null;
     }
 

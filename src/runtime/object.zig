@@ -16,6 +16,7 @@ pub const ObjectKind = enum {
 
 pub const Object = struct {
     kind: ObjectKind,
+    marked: bool,
     next: ?*Object,
 
     const Self = @This();
@@ -26,6 +27,7 @@ pub const Object = struct {
 
         ptr.object = Self{
             .kind = kind,
+            .marked = false,
             .next = vm.objects,
         };
 
@@ -137,7 +139,9 @@ pub const Object = struct {
             str.chars = buffer;
             str.hash = hash;
 
+            try vm.push(Value.fromObject(object));
             _ = vm.strings.set(str, Value.fromBoolean(true));
+            _ = try vm.pop();
 
             return str;
         }
