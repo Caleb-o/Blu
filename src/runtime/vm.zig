@@ -26,12 +26,23 @@ pub const InterpretErr = error{
 };
 
 const CallFrame = struct {
-    closure: *Object.Closure,
+    function: *Object.Function,
+    closure: ?*Object.Closure,
     ip: usize,
     slotStart: usize,
 
-    pub fn create(closure: *Object.Closure, slotStart: usize) CallFrame {
+    pub fn create(function: *Object.Function, slotStart: usize) CallFrame {
         return .{
+            .function = function,
+            .closure = null,
+            .ip = 0,
+            .slotStart = slotStart,
+        };
+    }
+
+    pub fn createWithClosure(closure: *Object.Closure, slotStart: usize) CallFrame {
+        return .{
+            .function = closure.function,
             .closure = closure,
             .ip = 0,
             .slotStart = slotStart,
@@ -82,13 +93,10 @@ pub const VM = struct {
 
     pub fn setupAndRun(self: *Self, func: *Object.Function) !InterpretResult {
         try self.push(Value.fromObject(&func.object));
-        const closure = try Object.Closure.create(self, func);
-        _ = try self.pop();
-        try self.push(Value.fromObject(&closure.object));
 
         // Call the script function
         // -- Sets up callframe
-        _ = self.call(closure, 0) catch {
+        _ = self.callFunction(func, 0) catch {
             self.runtimeError("Failed to call script function.\n");
             return .CompilerError;
         };
@@ -129,7 +137,7 @@ pub const VM = struct {
     }
 
     inline fn currentChunk(self: *Self) *Chunk {
-        return &self.currentFrame().closure.function.chunk;
+        return &self.currentFrame().function.chunk;
     }
 
     fn runtimeError(self: *Self, msg: []const u8) void {
@@ -145,7 +153,7 @@ pub const VM = struct {
         var idx: isize = @intCast(isize, self.frames.items.len) - 1;
         while (idx >= 0) : (idx -= 1) {
             const stackFrame = &self.frames.items[@intCast(usize, idx)];
-            const function = stackFrame.closure.function;
+            const function = stackFrame.function;
             const funcLine = 1;
 
             std.debug.print("[line {d}] in ", .{funcLine});
@@ -208,6 +216,7 @@ pub const VM = struct {
     fn callObject(self: *Self, object: *Object, argCount: usize) !bool {
         return switch (object.kind) {
             .Closure => try self.call(object.asClosure(), argCount),
+            .Function => try self.callFunction(object.asFunction(), argCount),
             .NativeFunction => {
                 // Don't include function within args
                 const args = self.stack.items[self.stack.items.len - argCount ..];
@@ -224,7 +233,24 @@ pub const VM = struct {
         };
     }
 
-    inline fn call(self: *Self, closure: *Object.Closure, argCount: usize) !bool {
+    fn callFunction(self: *Self, function: *Object.Function, argCount: usize) !bool {
+        if (function.arity != argCount) {
+            try self.runtimeErrorAlloc(
+                "Function '{s}' expected {d} arguments, but received {d}.",
+                .{ function.getIdentifier(), function.arity, argCount },
+            );
+            return false;
+        }
+
+        std.debug.assert(self.stack.items.len >= 1);
+        self.pushFrame(CallFrame.create(
+            function,
+            self.stack.items.len - argCount,
+        ));
+        return true;
+    }
+
+    fn call(self: *Self, closure: *Object.Closure, argCount: usize) !bool {
         if (closure.function.arity != argCount) {
             try self.runtimeErrorAlloc(
                 "Function '{s}' expected {d} arguments, but received {d}.",
@@ -234,7 +260,7 @@ pub const VM = struct {
         }
 
         std.debug.assert(self.stack.items.len >= 1);
-        self.pushFrame(CallFrame.create(
+        self.pushFrame(CallFrame.createWithClosure(
             closure,
             self.stack.items.len - argCount,
         ));
@@ -252,6 +278,11 @@ pub const VM = struct {
 
                 .Pop => _ = try self.pop(),
 
+                .Function => {
+                    var val = self.readConstant();
+                    try self.push(Value.fromObject(val.asObject()));
+                },
+
                 .Closure => {
                     var val = self.readConstant();
                     const function = val.asObject().asFunction();
@@ -266,7 +297,7 @@ pub const VM = struct {
                         if (isLocal) {
                             upvalue.* = try self.captureUpvalue(&self.stack.items[frame.slotStart + index]);
                         } else {
-                            upvalue.* = frame.closure.upvalues[index];
+                            upvalue.* = frame.closure.?.upvalues[index];
                         }
                     }
                 },
@@ -309,7 +340,7 @@ pub const VM = struct {
                 .GetUpvalue => {
                     const slot = @intCast(usize, self.readByte());
                     const frame = self.currentFrame();
-                    try self.push(frame.closure.upvalues[slot].location.*);
+                    try self.push(frame.closure.?.upvalues[slot].location.*);
                 },
 
                 .SetUpvalue => {
@@ -317,9 +348,9 @@ pub const VM = struct {
                     const frame = self.currentFrame();
                     std.debug.print("Setting at slot {d}:'{s}'\n", .{
                         slot,
-                        frame.closure.function.getIdentifier(),
+                        frame.function.getIdentifier(),
                     });
-                    frame.closure.upvalues[slot].location.* = self.peek(0);
+                    frame.closure.?.upvalues[slot].location.* = self.peek(0);
                 },
 
                 .CloseUpvalue => {

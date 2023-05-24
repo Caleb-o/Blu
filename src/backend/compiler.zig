@@ -252,17 +252,22 @@ pub const Compiler = struct {
 
         try self.endScope();
         const function = try self.endCompiler();
-
-        try self.emitOpByte(.Closure, try self.makeConstant(
+        const func = try self.makeConstant(
             identifier,
             Value.fromObject(&function.object),
-        ));
+        );
 
-        for (scopeComp.upvalues.items) |*upvalue| {
-            try self.emitBytes(
-                if (upvalue.isLocal) 1 else 0,
-                upvalue.index,
-            );
+        if (function.upvalues > 0) {
+            try self.emitOpByte(.Closure, func);
+
+            for (scopeComp.upvalues.items) |*upvalue| {
+                try self.emitBytes(
+                    if (upvalue.isLocal) 1 else 0,
+                    upvalue.index,
+                );
+            }
+        } else {
+            try self.emitOpByte(.Function, func);
         }
     }
 

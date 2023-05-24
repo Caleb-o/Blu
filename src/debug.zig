@@ -1,1 +1,1 @@
-pub const PRINT_CODE = false;
+pub const PRINT_CODE = true;

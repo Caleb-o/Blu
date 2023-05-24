@@ -5,7 +5,7 @@ pub const ByteCode = enum(u8) {
     ConstantByte,
     ConstantShort,
 
-    // NOTE: Will be replaced by Closure
+    Function, // index
     Closure, // index
     Call, // argument_count
 
@@ -53,6 +53,7 @@ pub const ByteCode = enum(u8) {
             .Pop => simpleInstruction("OP_POP", offset),
             .PopN => byteInstruction("OP_POP_N", offset, chunk),
 
+            .Function => constantInstruction("OP_FUNCTION", offset, chunk),
             .Closure => closureInstruction(offset, chunk),
             .Call => byteInstruction("OP_CALL", offset, chunk),
 
