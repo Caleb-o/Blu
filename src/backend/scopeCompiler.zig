@@ -30,7 +30,7 @@ pub const ScopeCompiler = struct {
     const Self = @This();
 
     pub fn init(vm: *VM, depth: u8, kind: ScopeKind, enclosing: ?*ScopeCompiler) !Self {
-        return .{
+        var comp = .{
             .enclosing = enclosing,
             .kind = kind,
             .function = try Object.Function.create(vm),
@@ -38,6 +38,16 @@ pub const ScopeCompiler = struct {
             .locals = ArrayList(Local).init(vm.allocator),
             .upvalues = ArrayList(Upvalue).init(vm.allocator),
         };
+
+        comp.locals.append(.{
+            .identifier = Token.aritificial("self"),
+            .kind = .None,
+            .initialised = true,
+            .captured = false,
+            .depth = depth,
+        }) catch unreachable;
+
+        return comp;
     }
 
     pub fn deinit(self: *Self) void {

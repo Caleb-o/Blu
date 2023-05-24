@@ -245,7 +245,7 @@ pub const VM = struct {
         std.debug.assert(self.stack.items.len >= 1);
         self.pushFrame(CallFrame.create(
             function,
-            self.stack.items.len - argCount,
+            self.stack.items.len - 1 - argCount,
         ));
         return true;
     }
@@ -262,7 +262,7 @@ pub const VM = struct {
         std.debug.assert(self.stack.items.len >= 1);
         self.pushFrame(CallFrame.createWithClosure(
             closure,
-            self.stack.items.len - argCount,
+            self.stack.items.len - 1 - argCount,
         ));
         return true;
     }
@@ -434,14 +434,14 @@ pub const VM = struct {
                     var result = try self.pop();
                     const oldFrame = self.frames.pop();
 
-                    try self.closeUpvalues(&self.stack.items[oldFrame.slotStart - 1]);
+                    try self.closeUpvalues(&self.stack.items[oldFrame.slotStart]);
 
                     if (self.frames.items.len == 0) {
                         // Script callframe - finish
                         return .Ok;
                     }
 
-                    try self.stack.resize(oldFrame.slotStart + 1);
+                    try self.stack.resize(oldFrame.slotStart);
                     try self.push(result);
                 },
                 else => unreachable,
