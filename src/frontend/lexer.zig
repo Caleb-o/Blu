@@ -336,11 +336,7 @@ pub const Lexer = struct {
                 else => .Identifier,
             },
             'w' => if (self.start.len == 1) .Identifier else return switch (self.start[1]) {
-                'h' => if (self.start.len == 2) .Identifier else return switch (self.start[2]) {
-                    // 'e' => self.checkKeyword(3, "n", .When),
-                    'i' => self.checkKeyword(3, "le", .While),
-                    else => .Identifier,
-                },
+                'h' => self.checkKeyword(2, "ile", .While),
                 else => .Identifier,
             },
             else => .Identifier,

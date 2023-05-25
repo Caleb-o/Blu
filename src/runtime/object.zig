@@ -64,7 +64,7 @@ pub const Object = struct {
     }
 
     // Check
-    pub inline fn isString(self: *Self) bool {
+    pub inline fn isString(self: *const Self) bool {
         return self.kind == .String;
     }
 
@@ -165,6 +165,14 @@ pub const Object = struct {
             _ = vm.strings.set(str, Value.fromBoolean(true));
 
             return str;
+        }
+
+        pub fn concat(vm: *VM, lhs: *const String, rhs: *const String) !*String {
+            const buffer = try std.mem.concat(vm.allocator, u8, &[_][]const u8{
+                lhs.chars,
+                rhs.chars,
+            });
+            return try String.create(vm, buffer);
         }
 
         fn copyLiteral(vm: *VM, source: []const u8) ![]const u8 {

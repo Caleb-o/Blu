@@ -167,6 +167,22 @@ pub const Compiler = struct {
         try self.emitOps(.Nil, .Return);
     }
 
+    inline fn emitJump(self: *Self) !usize {
+        try self.emitOpByte(.JumpByte, 0xFF);
+        return self.currentChunk().code.items.len - 1;
+    }
+
+    inline fn emitLoop(self: *Self, location: usize) !void {
+        std.debug.assert(location < std.math.maxInt(u8));
+        try self.emitOpByte(.Loop, @intCast(u8, location));
+    }
+
+    fn patchJump(self: *Self, location: usize) void {
+        const here = self.currentChunk().code.items.len;
+        std.debug.assert(here < std.math.maxInt(u8));
+        self.currentChunk().code.items[location] = @intCast(u8, @intCast(u8, here));
+    }
+
     fn makeConstant(self: *Self, token: *Token, value: Value) !u8 {
         var constant = self.currentChunk().addConstant(value) catch {
             errors.errorWithToken(token, "Compiler", "Too many constants in one chunk.");
@@ -194,6 +210,7 @@ pub const Compiler = struct {
             .binary => |n| try self.binary(n),
             .body => |n| try self.body(n),
             .ret => |n| try self.returnStatement(n),
+            .whileStmt => |n| try self.whileStatement(n),
 
             .out => |n| try self.out(n),
 
@@ -316,8 +333,8 @@ pub const Compiler = struct {
     fn assignment(self: *Self, node: *ast.Assignment) !void {
         self.canAssign = true;
         try self.visit(node.rhs);
-        try self.visit(node.lhs);
         self.canAssign = false;
+        try self.visit(node.lhs);
 
         // TODO: Handle different types of assignment
     }
@@ -339,8 +356,28 @@ pub const Compiler = struct {
     }
 
     fn literal(self: *Self, node: *ast.Literal) !void {
+        switch (node.token.kind) {
+            .True => {
+                try self.emitOp(.True);
+                return;
+            },
+            .False => {
+                try self.emitOp(.False);
+                return;
+            },
+            .Nil => {
+                try self.emitOp(.Nil);
+                return;
+            },
+            else => {},
+        }
+
         const value = switch (node.token.kind) {
             .Number => Value.fromF32(try std.fmt.parseFloat(f32, node.token.lexeme)),
+            .String => Value.fromObject(&(try Object.String.copy(
+                self.vm,
+                node.token.lexeme[1 .. node.token.lexeme.len - 1],
+            )).object),
             else => unreachable,
         };
 
@@ -360,6 +397,7 @@ pub const Compiler = struct {
             .StarStar => self.emitOp(.Pow),
             .Percent => self.emitOp(.Mod),
 
+            .Less => self.emitOp(.Less),
             else => {},
         };
     }
@@ -382,6 +420,14 @@ pub const Compiler = struct {
         } else {
             try self.emitReturn();
         }
+    }
+
+    fn whileStatement(self: *Self, node: *ast.While) !void {
+        const jump = try self.emitJump();
+        try self.visit(node.body);
+        self.patchJump(jump);
+        try self.visit(node.condition);
+        try self.emitLoop(jump - 1);
     }
 
     fn out(self: *Self, node: *ast.Out) !void {

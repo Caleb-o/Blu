@@ -16,6 +16,7 @@ pub const FunctionCall = @import("functionCall.zig").FunctionCallNode;
 pub const Out = @import("out.zig").OutNode;
 pub const FunctionDef = @import("functionDefinition.zig").FunctionDefinitionNode;
 pub const Return = @import("return.zig").ReturnNode;
+pub const While = @import("while.zig").WhileNode;
 pub const ExpressionStmt = @import("expressionStmt.zig").ExpressionStmtNode;
 
 pub const AstNode = union(enum) {
@@ -30,6 +31,7 @@ pub const AstNode = union(enum) {
     functionCall: *FunctionCall,
     out: *Out,
     ret: *Return,
+    whileStmt: *While,
     expressionStmt: *ExpressionStmt,
 
     const Self = @This();
@@ -69,6 +71,10 @@ pub const AstNode = union(enum) {
 
     pub inline fn fromOut(node: *Out) Self {
         return .{ .out = node };
+    }
+
+    pub inline fn fromWhile(node: *While) Self {
+        return .{ .whileStmt = node };
     }
 
     pub inline fn fromFunctionDef(node: *FunctionDef) Self {
@@ -118,6 +124,10 @@ pub const AstNode = union(enum) {
 
     pub inline fn isOut(self: *Self) bool {
         return self.* == .out;
+    }
+
+    pub inline fn isWhile(self: *Self) bool {
+        return self.* == .whileStmt;
     }
 
     pub inline fn isFunctionDef(self: *Self) bool {
@@ -183,6 +193,11 @@ pub const AstNode = union(enum) {
         return self.functionDef;
     }
 
+    pub fn asWhile(self: *Self) *While {
+        std.debug.assert(self.isWhile());
+        return self.whileStmt;
+    }
+
     pub fn asReturn(self: *Self) *Return {
         std.debug.assert(self.isReturn());
         return self.ret;
@@ -206,6 +221,7 @@ pub const AstNode = union(enum) {
             .out => self.asOut().deinit(allocator),
             .functionDef => self.asFunctionDef().deinit(allocator),
             .ret => self.asReturn().deinit(allocator),
+            .whileStmt => self.asWhile().deinit(allocator),
             .expressionStmt => self.asExpressionStmt().deinit(allocator),
         }
     }
@@ -295,6 +311,13 @@ pub const AstNode = union(enum) {
                     std.debug.print(" ", .{});
                     expr.print();
                 }
+                std.debug.print(")", .{});
+            },
+            .whileStmt => |v| {
+                std.debug.print("(while ", .{});
+                v.condition.print();
+                std.debug.print(" ", .{});
+                v.body.print();
                 std.debug.print(")", .{});
             },
             .expressionStmt => |v| {

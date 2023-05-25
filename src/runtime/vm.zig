@@ -97,7 +97,7 @@ pub const VM = struct {
         self.allocator = self.gc.allocator();
         self.errorAllocator = errorAllocator;
 
-        self.stack = try ArrayList(Value).initCapacity(stackAllocator, 32);
+        self.stack = try ArrayList(Value).initCapacity(stackAllocator, 512);
         self.frames = try ArrayList(CallFrame).initCapacity(allocator, 8);
         self.greyList = ArrayList(*Object).init(errorAllocator);
 
@@ -404,9 +404,25 @@ pub const VM = struct {
                     try self.push(Value.fromF32(val));
                 },
 
+                .Less => try self.binaryOp('<'),
+
                 .Nil => self.push(Value.fromNil()),
                 .True => self.push(Value.fromBoolean(true)),
                 .False => self.push(Value.fromBoolean(false)),
+
+                .JumpByte => {
+                    const location = self.readByte();
+                    self.currentFrame().ip = location;
+                },
+
+                .Loop => {
+                    const location = self.readByte();
+                    var val = try self.pop();
+
+                    if (val.asBoolean()) {
+                        self.currentFrame().ip = location + 2;
+                    }
+                },
 
                 .IntoList => {
                     const count = @intCast(usize, self.readByte());
@@ -489,7 +505,7 @@ pub const VM = struct {
     }
 
     pub fn push(self: *Self, val: Value) RuntimeError!void {
-        if (self.stack.items.len >= std.math.maxInt(u8)) {
+        if (self.stack.items.len > std.math.maxInt(u8)) {
             self.runtimeError("Stack overflow");
             return RuntimeError.StackOverflow;
         }
@@ -543,9 +559,16 @@ pub const VM = struct {
 
         switch (op) {
             '+' => {
-                var lhsv = lhs.asNumber();
-                var rhsv = rhs.asNumber();
-                try self.push(Value.fromF32(lhsv + rhsv));
+                if (lhs.isObject() and lhs.asObject().isString()) {
+                    var lhsv = lhs.asObject().asString();
+                    var rhsv = rhs.asObject().asString();
+
+                    try self.push(Value.fromObject(&(try Object.String.concat(self, lhsv, rhsv)).object));
+                } else {
+                    var lhsv = lhs.asNumber();
+                    var rhsv = rhs.asNumber();
+                    try self.push(Value.fromF32(lhsv + rhsv));
+                }
             },
             '-' => {
                 var lhsv = lhs.asNumber();
@@ -561,6 +584,12 @@ pub const VM = struct {
                 var lhsv = lhs.asNumber();
                 var rhsv = rhs.asNumber();
                 try self.push(Value.fromF32(lhsv / rhsv));
+            },
+
+            '<' => {
+                var lhsv = lhs.asNumber();
+                var rhsv = rhs.asNumber();
+                try self.push(Value.fromBoolean(lhsv < rhsv));
             },
             else => unreachable,
         }

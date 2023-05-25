@@ -23,6 +23,9 @@ pub const ByteCode = enum(u8) {
     Pop,
     PopN, // count
 
+    JumpByte, // Byte Location Relative
+    Loop, // Byte location Relative
+
     Add,
     Sub,
     Mul,
@@ -34,6 +37,8 @@ pub const ByteCode = enum(u8) {
     SubEq,
     MulEq,
     DivEq,
+
+    Less,
 
     Nil,
     True,
@@ -67,6 +72,9 @@ pub const ByteCode = enum(u8) {
             .SetUpvalue => byteInstruction("OP_SET_UPVALUE", offset, chunk),
             .CloseUpvalue => simpleInstruction("OP_CLOSE_UPVALUE", offset),
 
+            .JumpByte => byteInstruction("OP_JUMP_BYTE", offset, chunk),
+            .Loop => byteInstruction("OP_LOOP", offset, chunk),
+
             .Add => simpleInstruction("OP_ADD", offset),
             .Sub => simpleInstruction("OP_SUB", offset),
             .Mul => simpleInstruction("OP_MULTIPLY", offset),
@@ -79,6 +87,8 @@ pub const ByteCode = enum(u8) {
 
             .Pow => simpleInstruction("OP_POW", offset),
             .Mod => simpleInstruction("OP_MOD", offset),
+
+            .Less => simpleInstruction("OP_LESS", offset),
 
             .IntoList => byteInstruction("OP_INTO_LIST", offset, chunk),
             .Nil => simpleInstruction("OP_NIL", offset),

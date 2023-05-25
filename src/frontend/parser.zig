@@ -161,6 +161,7 @@ pub const Parser = struct {
     pub fn infix(self: *Self, kind: TokenKind) ParserError!Ast {
         return switch (kind) {
             .Plus, .Minus, .Star, .Slash, .StarStar, .Percent => try self.binary(),
+            .Less => try self.binary(),
             .LeftParen => try self.call(),
 
             else => std.debug.panic("Unimplemented infix '{}'\n", .{kind}),
@@ -298,10 +299,29 @@ pub const Parser = struct {
         ));
     }
 
+    fn whileStatement(self: *Self) ParserError!Ast {
+        self.advance();
+
+        const condition = try self.expression();
+        var body: Ast = undefined;
+        if (self.match(.Equal)) {
+            body = try self.expression();
+        } else {
+            try self.consume(.LeftCurly, "Expect '{' to start while block");
+            body = try self.block();
+        }
+        return Ast.fromWhile(try ast.While.init(
+            self.allocator,
+            condition,
+            body,
+        ));
+    }
+
     fn statement(self: *Self) !Ast {
         const stmt = switch (self.current.kind) {
             .Return => try self.returnStatement(),
             .Out => try self.outStatement(),
+            .While => try self.whileStatement(),
             else => try self.expressionStatement(),
         };
         try self.consume(.Semicolon, "Expect ';' after statement");
@@ -327,6 +347,8 @@ pub const Parser = struct {
             .Plus, .Minus => {},
             .Star, .Slash, .Percent => {},
             .StarStar => {},
+
+            .Less => {},
             else => unreachable,
         }
         return lhs;

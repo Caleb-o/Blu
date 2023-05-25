@@ -98,6 +98,14 @@ pub const Value = union(ValueKind) {
                 .number => true,
                 else => false,
             },
+            .boolean => switch (other.*) {
+                .boolean => true,
+                else => false,
+            },
+            .object => switch (other.*) {
+                .object => true,
+                else => false,
+            },
             else => false,
         };
     }
